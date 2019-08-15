@@ -14,6 +14,7 @@ class Gan(ModelBase):
     Args:
         dataset (ImageClassifierDatasetBase): dataset object.
         noise_dims (int): noise vector dimmension size.
+        num_of_predicts (int): number of generation images in predict function.
         epochs (int): numaber of training epochs.
         generator_optimizer_name (str): generator otimizer class name.
         discriminator_optimizer_name (str): discriminator otimizer class name.
@@ -26,6 +27,7 @@ class Gan(ModelBase):
             self,
             dataset: ImageClassifierDatasetBase,
             noise_dims: int,
+            num_of_predicts: int = 16,
             epochs: int = 5,
             generator_optimizer_name: str = 'adam',
             discriminator_optimizer_name: str = 'adam',
@@ -39,6 +41,7 @@ class Gan(ModelBase):
 
         self.dataset = dataset
         self.noise_dims = noise_dims
+        self.num_of_predicts = num_of_predicts
         self.epochs = epochs
 
         self.generator_optimizer_name = generator_optimizer_name
@@ -154,11 +157,11 @@ class Gan(ModelBase):
             gt (List[np.array]): ground truth images.
 
         """
-        noise = tf.random.normal([self.dataset.batch_size, self.noise_dims])
+        noise = tf.random.normal([self.num_of_predicts, self.noise_dims])
         generated_images = self.generator(noise, training=False)
         generated_images = generated_images.numpy() * 127.5 + 127.5
         x_test, _ = self.dataset.eval_data()
-        x_test = x_test[np.random.choice(x_test.shape[0], self.dataset.batch_size, replace=False)]
+        x_test = x_test[np.random.choice(x_test.shape[0], self.num_of_predicts, replace=False)]
         x_test = x_test * 127.5 + 127.5
         return generated_images, x_test
 
