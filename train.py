@@ -10,6 +10,7 @@ from model.fcnn import FCNNClassifier
 from model.resnet import ResNet
 from dataset.mnist import MnistDataset
 from dataset.cifar10 import Cifar10Dataset
+from dataset.cifar100 import Cifar100Dataset
 
 
 def main(args):
@@ -20,6 +21,8 @@ def main(args):
         dataset = MnistDataset(**dataset_params)
     elif args.dataset == 'cifar10':
         dataset = Cifar10Dataset(**dataset_params)
+    elif args.dataset == 'cifar100':
+        dataset = Cifar100Dataset(**dataset_params)
     else:
         raise ValueError("dataset {} not found" % (args.dataset))
 
