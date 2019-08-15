@@ -14,7 +14,7 @@ class Gan(ModelBase):
     Args:
         dataset (ImageClassifierDatasetBase): dataset object.
         noise_dims (int): noise vector dimmension size.
-        num_of_predicts (int): number of generation images in predict function.
+        num_of_predicts (int): number of generation images in inference function.
         epochs (int): numaber of training epochs.
         generator_optimizer_name (str): generator otimizer class name.
         discriminator_optimizer_name (str): discriminator otimizer class name.
@@ -149,8 +149,8 @@ class Gan(ModelBase):
 
         return history
 
-    def predict(self) -> Tuple[List[np.array], List[np.array]]:
-        """Predict model.
+    def inference(self) -> Tuple[List[np.array], List[np.array]]:
+        """Inference model.
 
         Return:
             predicts (List[np.array]): generated images.

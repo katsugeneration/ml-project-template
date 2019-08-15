@@ -32,7 +32,7 @@ def main(args):
     # save results
     logs = pathlib.Path(args.logs)
 
-    y_pred, y_test = model.predict()
+    y_pred, y_test = model.inference()
     for i in range(y_pred.shape[0]):
         if y_pred.shape[3] == 1:
             img = Image.fromarray(np.uint8(y_pred[i, :, :, 0]))

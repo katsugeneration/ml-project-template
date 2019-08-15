@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, List
 import tensorflow as tf
 from model.base import KerasImageClassifierBase
 
@@ -20,76 +20,103 @@ class ResNet(KerasImageClassifierBase):
         super(ResNet, self).__init__(**kwargs)
         self.block_nums = block_nums
 
-        channels = [16, 32, 64]
+        self.channels = [16, 32, 64]
 
-        inputs = tf.keras.layers.Input(shape=self.dataset.input_shape)
-        if len(self.dataset.input_shape) == 2:
-            x = tf.expand_dims(inputs, axis=2)
-        else:
-            x = inputs
-        x = tf.keras.layers.Conv2D(
-            channels[0],
-            kernel_size=(3, 3),
-            padding="same",
-            kernel_initializer="he_normal",
-            kernel_regularizer=tf.keras.regularizers.l2(1e-4))(x)
+        self.start_conv = tf.keras.layers.Conv2D(
+                                self.channels[0],
+                                kernel_size=(3, 3),
+                                padding="same",
+                                kernel_initializer="he_normal",
+                                kernel_regularizer=tf.keras.regularizers.l2(1e-4),
+                                input_shape=self.dataset.input_shape)
 
-        for c in channels:
+        self.blocks: List = []
+        for c in self.channels:
             for i in range(self.block_nums):
                 subsampling = i == 0 and c > 16
                 out_c = c*4
                 strides = (2, 2) if subsampling else (1, 1)
 
-                x = tf.keras.layers.BatchNormalization()(x)
-                x = tf.keras.layers.Activation(tf.nn.relu)(x)
-                y = tf.keras.layers.Conv2D(
-                        c,
-                        kernel_size=(1, 1),
-                        padding="same",
-                        strides=strides,
-                        kernel_initializer="he_normal",
-                        kernel_regularizer=tf.keras.regularizers.l2(1e-4))(x)
+                initial_path = [
+                    tf.keras.layers.BatchNormalization(),
+                    tf.keras.layers.Activation(tf.nn.relu)
+                ]
 
-                y = tf.keras.layers.BatchNormalization()(y)
-                y = tf.keras.layers.Activation(tf.nn.relu)(y)
-                y = tf.keras.layers.Conv2D(
-                        c,
-                        kernel_size=(3, 3),
-                        padding="same",
-                        kernel_initializer="he_normal",
-                        kernel_regularizer=tf.keras.regularizers.l2(1e-4))(y)
+                residual_path = [
+                    tf.keras.layers.Conv2D(
+                            c,
+                            kernel_size=(1, 1),
+                            padding="same",
+                            strides=strides,
+                            kernel_initializer="he_normal",
+                            kernel_regularizer=tf.keras.regularizers.l2(1e-4)),
 
-                y = tf.keras.layers.BatchNormalization()(y)
-                y = tf.keras.layers.Activation(tf.nn.relu)(y)
-                y = tf.keras.layers.Conv2D(
-                        out_c,
-                        kernel_size=(1, 1),
-                        padding="same",
-                        kernel_initializer="he_normal",
-                        kernel_regularizer=tf.keras.regularizers.l2(1e-4))(y)
+                    tf.keras.layers.BatchNormalization(),
+                    tf.keras.layers.Activation(tf.nn.relu),
+                    tf.keras.layers.Conv2D(
+                            c,
+                            kernel_size=(3, 3),
+                            padding="same",
+                            kernel_initializer="he_normal",
+                            kernel_regularizer=tf.keras.regularizers.l2(1e-4)),
+
+                    tf.keras.layers.BatchNormalization(),
+                    tf.keras.layers.Activation(tf.nn.relu),
+                    tf.keras.layers.Conv2D(
+                            out_c,
+                            kernel_size=(1, 1),
+                            padding="same",
+                            kernel_initializer="he_normal",
+                            kernel_regularizer=tf.keras.regularizers.l2(1e-4)),
+
+                ]
 
                 if i == 0:
-                    x = tf.keras.layers.Conv2D(
-                        out_c,
-                        kernel_size=(1, 1),
-                        strides=strides,
-                        padding="same",
-                        kernel_initializer="he_normal",
-                        kernel_regularizer=tf.keras.regularizers.l2(1e-4))(x)
-                x = tf.keras.layers.Add()([x, y])
+                    identity_path = [
+                            tf.keras.layers.Conv2D(
+                                out_c,
+                                kernel_size=(1, 1),
+                                strides=strides,
+                                padding="same",
+                                kernel_initializer="he_normal",
+                                kernel_regularizer=tf.keras.regularizers.l2(1e-4))
+                    ]
+                else:
+                    identity_path = []
 
-        x = tf.keras.layers.BatchNormalization()(x)
-        x = tf.keras.layers.Activation(tf.nn.relu)(x)
-        x = tf.keras.layers.GlobalAveragePooling2D()(x)
-        x = tf.keras.layers.Flatten()(x)
-        outputs = tf.keras.layers.Dense(
-                    self.dataset.category_nums,
-                    activation=tf.nn.softmax,
-                    kernel_initializer="he_normal",
-                    kernel_regularizer=tf.keras.regularizers.l2(1e-4))(x)
+                self.blocks.append({
+                    "initial_path": initial_path,
+                    "residual_path": residual_path,
+                    "identity_path": identity_path,
+                })
 
-        model = tf.keras.Model(inputs=inputs, outputs=outputs)
-        model.type = "resnet" + str(9 * self.block_nums + 2)
-        self.model = model
+        self.end_block = [
+            tf.keras.layers.BatchNormalization(),
+            tf.keras.layers.Activation(tf.nn.relu),
+            tf.keras.layers.GlobalAveragePooling2D(),
+            tf.keras.layers.Flatten(),
+            tf.keras.layers.Dense(
+                self.dataset.category_nums,
+                activation=tf.nn.softmax,
+                kernel_initializer="he_normal",
+                kernel_regularizer=tf.keras.regularizers.l2(1e-4))
+        ]
+        self.setup()
 
-        self.compile()
+    def call(self, inputs):
+        x = self.start_conv(inputs)
+
+        for b in self.blocks:
+            for l in b["initial_path"]:
+                x = l(x)
+            residual = x
+            for l in b["residual_path"]:
+                residual = l(residual)
+            for l in b["identity_path"]:
+                x = l(x)
+            x = x + residual
+
+        for l in self.end_block:
+            x = l(x)
+
+        return x

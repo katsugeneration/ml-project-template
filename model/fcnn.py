@@ -23,11 +23,15 @@ class FCNNClassifier(KerasImageClassifierBase):
         self.hidden_nums = hidden_nums
         self.dropout_rate = dropout_rate
 
-        # buid model
-        self.model = tf.keras.models.Sequential([
-            tf.keras.layers.Flatten(input_shape=self.dataset.input_shape),
-            tf.keras.layers.Dense(self.hidden_nums, activation=tf.nn.relu),
-            tf.keras.layers.Dropout(self.dropout_rate),
-            tf.keras.layers.Dense(self.dataset.category_nums, activation=tf.nn.softmax)
-        ])
-        self.compile()
+        self.flatten = tf.keras.layers.Flatten(input_shape=self.dataset.input_shape)
+        self.dense1 = tf.keras.layers.Dense(self.hidden_nums, activation=tf.nn.relu)
+        self.dropout = tf.keras.layers.Dropout(self.dropout_rate)
+        self.dense2 = tf.keras.layers.Dense(self.dataset.category_nums, activation=tf.nn.softmax)
+        self.setup()
+
+    def call(self, inputs):
+        x = self.flatten(inputs)
+        x = self.dense1(x)
+        x = self.dropout(x)
+        outputs = self.dense2(x)
+        return outputs

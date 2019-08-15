@@ -39,7 +39,7 @@ def main(args):
     classifier.save(pathlib.Path(args.logs).joinpath('model.h5'))
 
     # save results
-    y_pred, y_test = classifier.predict()
+    y_pred, y_test = classifier.inference()
     y_pred = np.argmax(y_pred, axis=1)
 
     labels = list(range(10))
