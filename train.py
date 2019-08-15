@@ -59,10 +59,10 @@ if __name__ == '__main__':
                         help="Training dataset name.")
     parser.add_argument('--model', default='fcnn', type=str,
                         help="Training model name.")
-    parser.add_argument('--dataset_param_path', default="model.conf.yaml", type=str,
-                        help="Number of epoch.")
+    parser.add_argument('--dataset_param_path', default="dataset.conf.yaml", type=str,
+                        help="Dataset config file path.")
     parser.add_argument('--model_param_path', default="model.conf.yaml", type=str,
-                        help="Number of epoch.")
+                        help="Model config file path.")
     parser.add_argument('--logs', default='logs',
                         type=str, help="Path to output log directory.")
     args = parser.parse_args()
