@@ -27,7 +27,7 @@ def main(args):
 
     # run learning
     history = model.train()
-    # model.save(pathlib.Path(args.logs).joinpath('model.h5'))
+    model.save(pathlib.Path(args.logs).joinpath('model'))
 
     # save results
     logs = pathlib.Path(args.logs)

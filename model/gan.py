@@ -1,5 +1,6 @@
-from typing import Tuple, Any, Dict, List
+from typing import Tuple, Any, Dict, List, Union
 import time
+import pathlib
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
@@ -12,6 +13,12 @@ class Gan(ModelBase):
 
     Args:
         dataset (ImageClassifierDatasetBase): dataset object.
+        noise_dims (int): noise vector dimmension size.
+        epochs (int): numaber of training epochs.
+        generator_optimizer_name (str): generator otimizer class name.
+        discriminator_optimizer_name (str): discriminator otimizer class name.
+        generator_lr (float): generator learning rate.
+        discriminator_lr (float): discriminator learning rate.
 
     """
 
@@ -19,11 +26,11 @@ class Gan(ModelBase):
             self,
             dataset: ImageClassifierDatasetBase,
             noise_dims: int,
-            generator_optimizer: str = 'adam',
-            discriminator_optimizer: str = 'adam',
+            epochs: int = 5,
+            generator_optimizer_name: str = 'adam',
+            discriminator_optimizer_name: str = 'adam',
             generator_lr: float = 1e-4,
             discriminator_lr: float = 1e-4,
-            epochs: int = 5,
             **kwargs: Any) -> None:
         """Intialize parameter and build model."""
 
@@ -34,8 +41,8 @@ class Gan(ModelBase):
         self.noise_dims = noise_dims
         self.epochs = epochs
 
-        self.generator_optimizer = generator_optimizer
-        self.discriminator_optimizer = discriminator_optimizer
+        self.generator_optimizer_name = generator_optimizer_name
+        self.discriminator_optimizer_name = discriminator_optimizer_name
         self.generator_lr = generator_lr
         self.discriminator_lr = discriminator_lr
 
@@ -45,6 +52,29 @@ class Gan(ModelBase):
 
         self.discriminator = self.build_discriminator(
                                 self.dataset.input_shape)
+
+        self.compile(self.generator, self.discriminator)
+
+    def compile(
+            self,
+            generator: tf.keras.Model,
+            discriminator: tf.keras.Model) -> None:
+        """Set optimizer to model.
+
+        Args:
+            generator (tf.keras.Model): generator model object.
+            discriminator (tf.keras.Model): discriminator model object.
+        """
+        self.gen_optimizer = tf.keras.optimizers.get(self.generator_optimizer_name)
+        self.gen_optimizer._set_hyper("learning_rate", self.generator_lr)
+        self.disc_optimizer = tf.keras.optimizers.get(self.discriminator_optimizer_name)
+        self.disc_optimizer._set_hyper("learning_rate", self.discriminator_lr)
+
+        self.checkpoint = tf.train.Checkpoint(
+                                generator_optimizer=self.gen_optimizer,
+                                discriminator_optimizer=self.disc_optimizer,
+                                generator=generator,
+                                discriminator=discriminator)
 
     def train(self) -> Dict[str, List[Any]]:
         """Training model.
@@ -59,10 +89,6 @@ class Gan(ModelBase):
         }
 
         cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
-        generator_optimizer = tf.keras.optimizers.get(self.generator_optimizer)
-        generator_optimizer._set_hyper("learning_rate", self.generator_lr)
-        discriminator_optimizer = tf.keras.optimizers.get(self.discriminator_optimizer)
-        discriminator_optimizer._set_hyper("learning_rate", self.discriminator_lr)
 
         def discriminator_loss(real_output, fake_output):
             real_loss = cross_entropy(tf.ones_like(real_output), real_output)
@@ -90,8 +116,8 @@ class Gan(ModelBase):
             gen_gradients = gen_tape.gradient(gen_loss, self.generator.trainable_variables)
             disc_gradients = disc_tape.gradient(disc_loss, self.discriminator.trainable_variables)
 
-            generator_optimizer.apply_gradients(zip(gen_gradients, self.generator.trainable_variables))
-            discriminator_optimizer.apply_gradients(zip(disc_gradients, self.discriminator.trainable_variables))
+            self.gen_optimizer.apply_gradients(zip(gen_gradients, self.generator.trainable_variables))
+            self.disc_optimizer.apply_gradients(zip(disc_gradients, self.discriminator.trainable_variables))
             return gen_loss, disc_loss
 
         data_generator = self.dataset.training_data_generator()
@@ -135,6 +161,17 @@ class Gan(ModelBase):
         x_test = x_test[np.random.choice(x_test.shape[0], self.dataset.batch_size, replace=False)]
         x_test = x_test * 127.5 + 127.5
         return generated_images, x_test
+
+    def save(
+            self,
+            path: Union[str, pathlib.Path]) -> None:
+        """Save model.
+
+        Args:
+            path (str or pathlib.Path): path to model save directory.
+
+        """
+        self.checkpoint.save(file_prefix=str(path))
 
     def build_generator(
             self,
