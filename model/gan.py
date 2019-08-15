@@ -1,5 +1,6 @@
 from typing import Tuple, Any, Dict, List
 import time
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
 from model.base import ModelBase
@@ -118,6 +119,22 @@ class Gan(ModelBase):
                     avg_disc_loss))
 
         return history
+
+    def predict(self) -> Tuple[List[np.array], List[np.array]]:
+        """Predict model.
+
+        Return:
+            predicts (List[np.array]): generated images.
+            gt (List[np.array]): ground truth images.
+
+        """
+        noise = tf.random.normal([self.dataset.batch_size, self.noise_dims])
+        generated_images = self.generator(noise, training=False)
+        generated_images = generated_images.numpy() * 127.5 + 127.5
+        x_test, _ = self.dataset.eval_data()
+        x_test = x_test[np.random.choice(x_test.shape[0], self.dataset.batch_size, replace=False)]
+        x_test = x_test * 127.5 + 127.5
+        return generated_images, x_test
 
     def build_generator(
             self,

@@ -20,11 +20,11 @@ class ModelBase(object):
         """
         pass
 
-    def predict(self) -> Tuple[List[List[float]], List[Any]]:
+    def predict(self) -> Tuple[List[Any], List[Any]]:
         """Predict model.
 
         Return:
-            predicts (List[List[float]]): predict result. shape is data size x category_nums.
+            predicts (List[Any]): predict result.
             gt (List[Any]): ground truth data.
 
         """

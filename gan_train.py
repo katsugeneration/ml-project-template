@@ -1,10 +1,8 @@
+import shutil
 import pathlib
 import yaml
-from sklearn.metrics import confusion_matrix
-from matplotlib import pyplot as plt
-import seaborn
 import numpy as np
-import pandas as pd
+from PIL import Image
 from model.gan import Gan
 from dataset.mnist import MnistDataset
 from dataset.cifar10 import Cifar10Dataset
@@ -31,16 +29,22 @@ def main(args):
     history = model.train()
     # model.save(pathlib.Path(args.logs).joinpath('model.h5'))
 
-    # # save results
-    # y_pred, y_test = model.predict()
-    # y_pred = np.argmax(y_pred, axis=1)
+    # save results
+    logs = pathlib.Path(args.logs)
 
-    # labels = list(range(10))
-    # cm = confusion_matrix(y_test, y_pred, labels=labels)
-    # df_cm = pd.DataFrame(cm, index=labels, columns=labels)
-    # fig = plt.figure(figsize=(12.8, 7.2))
-    # seaborn.heatmap(df_cm, cmap=plt.cm.Blues, annot=True)
-    # fig.savefig(str(logs.joinpath('confusion_matrix.png')))
+    y_pred, y_test = model.predict()
+    for i in range(y_pred.shape[0]):
+        if y_pred.shape[3] == 1:
+            img = Image.fromarray(np.uint8(y_pred[i, :, :, 0]))
+        else:
+            img = Image.fromarray(np.uint8(y_pred[i]))
+        img.save(str(logs.joinpath('predictions_{:04d}.png'.format(i))))
+    for i in range(y_test.shape[0]):
+        if y_test.shape[3] == 1:
+            img = Image.fromarray(np.uint8(y_test[i, :, :, 0]))
+        else:
+            img = Image.fromarray(np.uint8(y_test[i]))
+        img.save(str(logs.joinpath('gt_{:04d}.png'.format(i))))
 
     return history
 
@@ -70,8 +74,9 @@ if __name__ == '__main__':
     mlflow.log_params(model_params)
 
     logs = pathlib.Path(args.logs)
-    if not logs.exists():
-        logs.mkdir(parents=True)
+    if logs.exists():
+        shutil.rmtree(str(logs))
+    logs.mkdir(parents=True)
 
     history = main(args)
 

@@ -1,4 +1,5 @@
-from typing import Tuple, List, Any, Iterator
+from typing import Tuple, Any, Iterator
+import numpy as np
 import tensorflow as tf
 
 
@@ -9,11 +10,11 @@ class DatasetBase(object):
         """Load data and setup preprocessing."""
         pass
 
-    def training_data(self) -> Tuple[List, List]:
+    def training_data(self) -> Tuple[np.array, np.array]:
         """Return training dataset.
 
         Return:
-            dataset (Tuple[List, List]): training dataset pair
+            dataset (Tuple[np.array, np.array]): training dataset pair
 
         """
         pass
@@ -27,11 +28,11 @@ class DatasetBase(object):
         """
         pass
 
-    def eval_data(self) -> Tuple[List, List]:
+    def eval_data(self) -> Tuple[np.array, np.array]:
         """Return evaluation dataset.
 
         Return:
-            dataset (Tuple[List, List]): evaluation dataset pair
+            dataset (Tuple[np.array, np.array]): evaluation dataset pair
 
         """
         pass
@@ -65,16 +66,16 @@ class BinaryImageClassifierDataset(ImageClassifierDatasetBase):
 
     def __init__(self, **kwargs: Any) -> None:
         super(BinaryImageClassifierDataset, self).__init__(**kwargs)
-        self.x_train: List = [None]
-        self.x_test: List = [None]
-        self.y_train: List = [None]
-        self.y_test: List = [None]
+        self.x_train: np.array = [None]
+        self.x_test: np.array = [None]
+        self.y_train: np.array = [None]
+        self.y_test: np.array = [None]
 
-    def training_data(self) -> Tuple[List, List]:
+    def training_data(self) -> Tuple[np.array, np.array]:
         """Return training dataset.
 
         Return:
-            dataset (Tuple[List, List]): training dataset pair
+            dataset (Tuple[np.array, np.array]): training dataset pair
 
         """
         return (self.train_data_gen.random_transform(self.x_train), self.y_train)
@@ -89,11 +90,11 @@ class BinaryImageClassifierDataset(ImageClassifierDatasetBase):
         self.steps_per_epoch = len(self.x_train) // self.batch_size
         return self.train_data_gen.flow(self.x_train, y=self.y_train, batch_size=self.batch_size)
 
-    def eval_data(self) -> Tuple[List, List]:
+    def eval_data(self) -> Tuple[np.array, np.array]:
         """Return evaluation dataset.
 
         Return:
-            dataset (Tuple[List, List]): evaluation dataset pair
+            dataset (Tuple[np.array, np.array]): evaluation dataset pair
 
         """
         return (self.x_test, self.y_test)

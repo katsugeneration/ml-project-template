@@ -1,3 +1,4 @@
+import shutil
 import pathlib
 import yaml
 from sklearn.metrics import confusion_matrix
@@ -20,7 +21,7 @@ def main(args):
     elif args.dataset == 'cifar10':
         dataset = Cifar10Dataset(**dataset_params)
     else:
-        raise NameError("dataset {} not found" % (args.dataset))
+        raise ValueError("dataset {} not found" % (args.dataset))
 
     # prepare model
     with open(args.model_param_path, 'r') as f:
@@ -31,7 +32,7 @@ def main(args):
     elif args.model == 'resnet':
         classifier = ResNet(**model_params)
     else:
-        raise NameError("model {} not found" % (args.model))
+        raise ValueError("model {} not found" % (args.model))
 
     # run learning
     history = classifier.train()
@@ -76,8 +77,9 @@ if __name__ == '__main__':
     mlflow.log_params(model_params)
 
     logs = pathlib.Path(args.logs)
-    if not logs.exists():
-        logs.mkdir(parents=True)
+    if logs.exists():
+        shutil.rmtree(str(logs))
+    logs.mkdir(parents=True)
 
     history = main(args)
 
