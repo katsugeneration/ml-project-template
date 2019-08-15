@@ -1,4 +1,4 @@
-from typing import Tuple, List, Sequence, Any, Iterator
+from typing import Tuple, List, Any, Iterator
 import tensorflow as tf
 
 
@@ -45,7 +45,7 @@ class ImageClassifierDatasetBase(DatasetBase):
 
     """
 
-    input_shape: Sequence[int] = (1, 1)
+    input_shape: Tuple[int, int, int] = (1, 1, 1)
     category_nums: int = 1
     steps_per_epoch: int = 1
 
