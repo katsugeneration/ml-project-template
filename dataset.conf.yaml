@@ -1,0 +1,3 @@
+horizontal_flip: true
+width_shift_range: 4
+height_shift_range: 4

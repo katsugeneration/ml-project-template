@@ -1,0 +1,18 @@
+name: ml-project-template
+
+entry_points:
+  main:
+    parameters:
+      dataset:
+        type: str
+        default: mnist
+      model:
+        type: str
+        default: fcnn
+      dataset_param_path:
+        type: str
+        default: dataset.conf.yaml
+      model_param_path:
+        type: str
+        default: model.conf.yaml
+    command: "python train.py --dataset {dataset} --model {model} --dataset_param_path {dataset_param_path} --model_param_path {model_param_path}"
