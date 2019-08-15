@@ -133,8 +133,8 @@ class Gan(ModelBase):
                 avg_disc_loss += disc_loss
                 i += 1
 
-            avg_gen_loss /= float(self.dataset.steps_per_epoch) / float(self.dataset.batch_size)
-            avg_disc_loss /= float(self.dataset.steps_per_epoch) / float(self.dataset.batch_size)
+            avg_gen_loss /= float(self.dataset.steps_per_epoch) * float(self.dataset.batch_size)
+            avg_disc_loss /= float(self.dataset.steps_per_epoch) * float(self.dataset.batch_size)
             history['generator_loss'].append(avg_gen_loss.numpy())
             history['discriminator_loss'].append(avg_disc_loss.numpy())
 
