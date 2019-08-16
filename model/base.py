@@ -85,10 +85,13 @@ class KerasImageClassifierBase(KerasModelBase):
 
     def setup(self) -> None:
         """Set optimizer to model."""
-        optimizer = tf.keras.optimizers.get(self.optimizer_name)
-        optimizer._set_hyper("learning_rate", self.lr)
-        optimizer._set_hyper("momentum", self.momentum)
-        optimizer.clipnorm = self.clipnorm
+        optimizer = tf.keras.optimizers.get({
+            'class_name': self.optimizer_name,
+            'config': {
+                'learning_rate': self.lr,
+                'momentum': self.momentum,
+                'clipnorm': self.clipnorm
+                }})
 
         super(KerasImageClassifierBase, self).compile(
             optimizer=optimizer,
