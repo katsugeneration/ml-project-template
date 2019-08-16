@@ -37,6 +37,15 @@ class DatasetBase(object):
         """
         pass
 
+    def eval_data_generator(self) -> Iterator:
+        """Return evaluation dataset.
+
+        Return:
+            dataset (Iterator): dataset generator
+
+        """
+        pass
+
 
 class ImageClassifierDatasetBase(DatasetBase):
     """Image classification dataset loader base class.
@@ -49,6 +58,7 @@ class ImageClassifierDatasetBase(DatasetBase):
     input_shape: Tuple[int, int, int] = (1, 1, 1)
     category_nums: int = 1
     steps_per_epoch: int = 1
+    eval_steps_per_epoch: int = 1
 
     def __init__(
             self,
@@ -98,3 +108,13 @@ class BinaryImageClassifierDataset(ImageClassifierDatasetBase):
 
         """
         return (self.x_test, self.y_test)
+
+    def eval_data_generator(self) -> Iterator:
+        """Return evaluation dataset.
+
+        Return:
+            dataset (Iterator): dataset generator
+
+        """
+        self.eval_steps_per_epoch = len(self.x_test) // self.batch_size
+        return self.eval_data_gen.flow(self.x_test, y=self.y_test, batch_size=self.batch_size)

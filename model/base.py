@@ -111,11 +111,12 @@ class KerasImageClassifierBase(KerasModelBase):
                     lambda e: self.lr if e < int(self.epochs / 2) else self.lr / 10.0 if e < int(self.epochs * 3 / 4) else self.lr / 100.0))
 
         generator = self.dataset.training_data_generator()
-        (x_test, y_test) = self.dataset.eval_data()
+        eval_generator = self.dataset.eval_data_generator()
         history = self.fit_generator(
                         generator,
                         steps_per_epoch=self.dataset.steps_per_epoch,
-                        validation_data=(x_test, y_test),
+                        validation_data=eval_generator,
+                        validation_steps=self.dataset.eval_steps_per_epoch,
                         epochs=self.epochs,
                         callbacks=callbacks)
         return history.history
