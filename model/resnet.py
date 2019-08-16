@@ -114,7 +114,7 @@ class ResNet(KerasImageClassifierBase):
                 residual = l(residual)
             for l in b["identity_path"]:
                 x = l(x)
-            x = x + residual
+            x = tf.keras.layers.Add()([x, residual])
 
         for l in self.end_block:
             x = l(x)
