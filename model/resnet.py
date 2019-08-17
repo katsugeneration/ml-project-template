@@ -101,9 +101,9 @@ class ResNet(KerasImageClassifierBase):
                 kernel_initializer="he_normal",
                 kernel_regularizer=tf.keras.regularizers.l2(1e-4))
         ]
-        self.setup()
 
-    def call(self, inputs):
+        # build model
+        inputs = tf.keras.layers.Input(self.dataset.input_shape)
         x = self.start_conv(inputs)
 
         for b in self.blocks:
@@ -119,4 +119,5 @@ class ResNet(KerasImageClassifierBase):
         for l in self.end_block:
             x = l(x)
 
-        return x
+        self.model = tf.keras.Model(inputs=inputs, outputs=x)
+        self.setup()

@@ -27,11 +27,13 @@ class FCNNClassifier(KerasImageClassifierBase):
         self.dense1 = tf.keras.layers.Dense(self.hidden_nums, activation=tf.nn.relu)
         self.dropout = tf.keras.layers.Dropout(self.dropout_rate)
         self.dense2 = tf.keras.layers.Dense(self.dataset.category_nums, activation=tf.nn.softmax)
-        self.setup()
 
-    def call(self, inputs):
+        # build model
+        inputs = tf.keras.layers.Input(self.dataset.input_shape)
         x = self.flatten(inputs)
         x = self.dense1(x)
         x = self.dropout(x)
         outputs = self.dense2(x)
-        return outputs
+
+        self.model = tf.keras.Model(inputs=inputs, outputs=outputs)
+        self.setup()

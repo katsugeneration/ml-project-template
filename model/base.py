@@ -42,11 +42,23 @@ class ModelBase(object):
         pass
 
 
-class KerasModelBase(tf.keras.Model, ModelBase):
+class KerasModelBase(ModelBase):
     """Keras model class."""
 
+    model: tf.keras.Model
+
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        tf.keras.Model.__init__(self, *args, **kwargs)
+        if int(tf.__version__.split('.')[0]) < 2:
+            tf.compat.v1.enable_eager_execution()
+        gpus = tf.config.experimental.list_physical_devices('GPU')
+        if gpus:
+            try:
+                tf.config.experimental.set_visible_devices(gpus[0], 'GPU')
+                tf.config.experimental.set_memory_growth(gpus[0], True)
+                logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+                print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPU")
+            except RuntimeError:
+                pass
 
 
 class KerasImageClassifierBase(KerasModelBase):
@@ -93,7 +105,7 @@ class KerasImageClassifierBase(KerasModelBase):
                 'clipnorm': self.clipnorm
                 }})
 
-        super(KerasImageClassifierBase, self).compile(
+        self.model.compile(
             optimizer=optimizer,
             loss='sparse_categorical_crossentropy',
             metrics=['accuracy'])
@@ -112,7 +124,7 @@ class KerasImageClassifierBase(KerasModelBase):
 
         generator = self.dataset.training_data_generator()
         eval_generator = self.dataset.eval_data_generator()
-        history = self.fit_generator(
+        history = self.model.fit_generator(
                         generator,
                         steps_per_epoch=self.dataset.steps_per_epoch,
                         validation_data=eval_generator,
@@ -130,7 +142,7 @@ class KerasImageClassifierBase(KerasModelBase):
 
         """
         (x_test, y_test) = self.dataset.eval_data()
-        predicts = super(KerasImageClassifierBase, self).predict(x_test)
+        predicts = self.model.predict(x_test)
         return predicts, y_test
 
     def save(
@@ -142,4 +154,4 @@ class KerasImageClassifierBase(KerasModelBase):
             path (str or pathlib.Path): path to model save directory.
 
         """
-        self.save_weights(str(path))
+        self.model.save_weights(str(path))
