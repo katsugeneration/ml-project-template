@@ -45,10 +45,8 @@ class ModelBase(object):
 class KerasModelBase(ModelBase):
     """Keras model class."""
 
-    model: tf.keras.Model
-
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        if int(tf.__version__.split('.')[0]) < 2:
+        if int(tf.__version__.split('.')[0]) < 2 and not tf.compat.v1.executing_eagerly():
             tf.compat.v1.enable_eager_execution()
         gpus = tf.config.experimental.list_physical_devices('GPU')
         if gpus:
@@ -59,6 +57,8 @@ class KerasModelBase(ModelBase):
                 print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPU")
             except RuntimeError:
                 pass
+
+        self.model: tf.keras.Model
 
 
 class KerasImageClassifierBase(KerasModelBase):
