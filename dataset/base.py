@@ -55,11 +55,6 @@ class ImageClassifierDatasetBase(DatasetBase):
 
     """
 
-    input_shape: Tuple[int, int, int] = (1, 1, 1)
-    category_nums: int = 1
-    steps_per_epoch: int = 1
-    eval_steps_per_epoch: int = 1
-
     def __init__(
             self,
             batch_size: int = 32,
@@ -69,6 +64,10 @@ class ImageClassifierDatasetBase(DatasetBase):
         self.batch_size = batch_size
         self.train_data_gen = tf.keras.preprocessing.image.ImageDataGenerator(**kwargs)
         self.eval_data_gen = tf.keras.preprocessing.image.ImageDataGenerator()
+        self.input_shape: Tuple[int, int, int]
+        self.category_nums: int
+        self.steps_per_epoch: int
+        self.eval_steps_per_epoch: int
 
 
 class BinaryImageClassifierDataset(ImageClassifierDatasetBase):
@@ -76,10 +75,10 @@ class BinaryImageClassifierDataset(ImageClassifierDatasetBase):
 
     def __init__(self, **kwargs: Any) -> None:
         super(BinaryImageClassifierDataset, self).__init__(**kwargs)
-        self.x_train: np.array = [None]
-        self.x_test: np.array = [None]
-        self.y_train: np.array = [None]
-        self.y_test: np.array = [None]
+        self.x_train: np.array
+        self.x_test: np.array
+        self.y_train: np.array
+        self.y_test: np.array
 
     def training_data(self) -> Tuple[np.array, np.array]:
         """Return training dataset.
