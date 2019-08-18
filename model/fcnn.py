@@ -14,8 +14,8 @@ class FCNNClassifier(KerasImageClassifierBase):
 
     def __init__(
             self,
-            hidden_nums: int,
-            dropout_rate: float,
+            hidden_nums: int = 512,
+            dropout_rate: float = 0.2,
             **kwargs: Any) -> None:
         """Intialize parameter and build model."""
         # initialize params
