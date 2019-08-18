@@ -27,7 +27,7 @@ poetry run mlflow run . --no-conda -P runner=image_recognition_trainer -P model=
 4. task train runner implementation
 
 # Todo
-[] multiple train path template
-[] hyper parameter search template
-[] test setting template
-[] CI settings(mypy, flake8, pydocstyle etc...) template
+- [] multiple train path template
+- [] hyper parameter search template
+- [] test setting template
+- [] CI settings(mypy, flake8, pydocstyle etc...) template

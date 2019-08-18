@@ -18,6 +18,20 @@ entry_points:
         type: str
         default: model.conf.yaml
     command: "python run_once.py {runner} --dataset {dataset} --model {model} --dataset_param_path {dataset_param_path} --model_param_path {model_param_path}"
+  grid_seach:
+    parameters:
+      runner:
+        type: str
+      dataset:
+        type: str
+        default: mnist
+      model:
+        type: str
+        default: fcnn
+      params_path:
+        type: str
+        default: params.conf.yaml
+    command: "python run_grid_search.py {runner} --dataset {dataset} --model {model} --params_path {params_path}"
   gan_train:
     parameters:
       dataset:

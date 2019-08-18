@@ -1,0 +1,12 @@
+model:
+  epochs: 
+    - 1
+    - 10
+  hidden_nums:
+    - 512
+    - 256
+
+dataset:
+  batch_size:
+    - 64
+    - 128
