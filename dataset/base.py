@@ -106,7 +106,7 @@ class BinaryImageClassifierDataset(ImageClassifierDatasetBase):
         y_train = tf.keras.utils.to_categorical(self.y_train)
         self.steps_per_epoch = len(self.x_train) // self.batch_size
         if self.use_mixup:
-            return MixupGenerator(self.x_train, y_train, batch_size=self.batch_size, datagen=self.train_data_gen)
+            return MixupGenerator(datagen=self.train_data_gen).flow(self.x_train, y_train, batch_size=self.batch_size)
         else:
             return self.train_data_gen.flow(self.x_train, y=y_train, batch_size=self.batch_size)
 

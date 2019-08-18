@@ -7,16 +7,14 @@ from dataset.mixup import MixupGenerator
 
 class TestMixup(object):
     def test_init(self):
-        gen = MixupGenerator(
-                    np.zeros((32, 32, 32, 3)),
-                    np.zeros((32, )),
-                    batch_size=16)
-        eq_(len(gen), 1)
+        gen = MixupGenerator()
 
     def test_generate(self):
-        gen = MixupGenerator(
-                    np.zeros((32, 32, 32, 3)),
-                    np.zeros((32, )),
-                    batch_size=16)
+        gen = MixupGenerator()
 
-        
+        x, y = next(gen.flow(
+                    np.zeros((32, 32, 32, 3)),
+                    np.zeros((32, 2)),
+                    batch_size=16))
+        eq_(x.shape, (16, 32, 32, 3))
+        eq_(y.shape, (16, 2))
