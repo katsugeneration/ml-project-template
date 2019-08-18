@@ -48,8 +48,6 @@ class RunnerBase(object):
             raise ValueError("model {} not found".format(model_name))
 
         history = self._run(dataset, model, log_path)
-        print("history", history)
-
         return history
 
     def _run(
