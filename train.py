@@ -43,6 +43,7 @@ def main(args):
 
     # save results
     y_pred, y_test = classifier.inference()
+    y_test = np.argmax(y_test, axis=1)
     y_pred = np.argmax(y_pred, axis=1)
 
     labels = list(range(10))
