@@ -18,7 +18,7 @@ class ResNet(KerasImageClassifierBase):
     def __init__(
             self,
             block_nums: int,
-            use_se: bool = True,
+            use_se: bool = False,
             **kwargs: Any) -> None:
         """Intialize parameter and build model."""
         # initialize params
