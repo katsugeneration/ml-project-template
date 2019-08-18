@@ -6,7 +6,7 @@ It will make easy to start machine learning project regardless of dataset and fr
 
 # Usage
 Run under the commands for install and training mnist classifier with fully connected network.
-```python
+```sh
 poetry install
 poetry run mlflow run . --no-conda -P runner=image_recognition_trainer -P model=fcnn -P dataset=mnist
 ```
