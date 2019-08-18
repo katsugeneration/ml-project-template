@@ -16,7 +16,7 @@ class TestFCNN(object):
 
     def test_train(self):
         fcnn = FCNNClassifier(
-                    dataset=DummyDataset(batch_size=1),
+                    dataset=DummyDataset(batch_size=2),
                     hidden_nums=16,
                     dropout_rate=0.8)
         history = fcnn.train()

@@ -22,7 +22,7 @@ class TestResnet(object):
         
     def test_train(self):
         resnet = ResNet(
-                    dataset=DummyDataset(batch_size=1),
+                    dataset=DummyDataset(batch_size=2),
                     block_nums=1,
                     epochs=1)
         history = resnet.train()

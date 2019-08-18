@@ -11,7 +11,7 @@ class DummyDataset(BinaryImageClassifierDataset):
     """Dummy dataset class for test."""
 
     input_shape = (1, 1, 1)
-    category_nums = 1
+    category_nums = 2
 
     def __init__(
             self,
@@ -20,6 +20,6 @@ class DummyDataset(BinaryImageClassifierDataset):
         super(DummyDataset, self).__init__(**kwargs)
 
         self.x_train = np.zeros((self.batch_size, ) + self.input_shape)
-        self.y_train = [0] * self.batch_size
+        self.y_train = np.array([0, 1] * (self.batch_size // 2))
         self.x_test = np.zeros((self.batch_size, ) + self.input_shape)
-        self.y_test = [0] * self.batch_size
+        self.y_test = np.array([0, 1] * (self.batch_size // 2))

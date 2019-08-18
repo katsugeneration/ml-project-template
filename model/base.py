@@ -107,7 +107,7 @@ class KerasImageClassifierBase(KerasModelBase):
 
         self.model.compile(
             optimizer=optimizer,
-            loss='sparse_categorical_crossentropy',
+            loss='categorical_crossentropy',
             metrics=['accuracy'])
 
     def train(self) -> Dict[str, List[Any]]:
