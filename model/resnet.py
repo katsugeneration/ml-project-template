@@ -1,6 +1,9 @@
+# Copyright 2019 Katsuya Shimabukuro. All rights reserved.
+# Licensed under the MIT License.
 from typing import Any, List
 import tensorflow as tf
 from model.base import KerasImageClassifierBase
+from model.se_block import SEBlock
 
 
 class ResNet(KerasImageClassifierBase):
@@ -8,12 +11,14 @@ class ResNet(KerasImageClassifierBase):
 
     Args:
         block_nums (int): number of block units.
+        use_se (bool): whether to use squeeze-and-excitation block
 
     """
 
     def __init__(
             self,
             block_nums: int,
+            use_se: bool = True,
             **kwargs: Any) -> None:
         """Intialize parameter and build model."""
         # initialize params
@@ -70,6 +75,9 @@ class ResNet(KerasImageClassifierBase):
                             kernel_regularizer=tf.keras.regularizers.l2(1e-4)),
 
                 ]
+
+                if use_se:
+                    residual_path.append(SEBlock(out_c))
 
                 if i == 0:
                     identity_path = [
