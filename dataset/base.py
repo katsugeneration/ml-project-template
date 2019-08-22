@@ -149,6 +149,8 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
                          this dirctory contains `train`, `train_labels`, `val` and `val_labels` directories,
                          which have correspondence input images or label images.
         class_csv (str): path to class color definition csv. each rows has `name`, `r`, `g` and `b` columns.
+        crop_width (int): crop width. if value is 0, we do not crop.
+        crop_height (int): crop width. if value is 0, we do not crop.
 
     """
 
@@ -156,12 +158,59 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             self,
             directory: str,
             class_csv: str,
+            crop_width: int = 0,
+            crop_height: int = 0,
             **kwargs: Any) -> None:
         """Initilize params."""
         super(DirectoryImageSegmentationDataset, self).__init__(**kwargs)
         self.directory = pathlib.Path(directory)
         self.class_dict: pd.DataFrame = pd.read_csv(class_csv)
         self.category_nums = len(self.class_dict)
+
+        for path in self.directory.joinpath('train').glob('*'):
+            try:
+                image = np.array(Image.open(path))
+            except OSError:
+                continue
+
+            self.input_shape = image.shape
+            break
+
+        if crop_height != 0 and crop_width != 0:
+            self.input_shape = (crop_width, crop_height, self.input_shape[2])
+        self.crop_width = crop_width
+        self.crop_height = crop_height
+
+    def _random_crop(
+            self,
+            image: np.array,
+            label: np.array) -> Tuple[np.array, np.array]:
+        """Crop image and label to correspondence position.
+
+        Args:
+            image (np.array): target image.
+            label (np.array): target label.
+
+        Return:
+            cropped_image (np.array): cropped image
+            cropped_label (np.array): cropped label
+
+        """
+        if (image.shape[0] != label.shape[0]) or (image.shape[1] != label.shape[1]):
+            raise ValueError('Image and label must have the same dimensions!')
+
+        if self.crop_width == 0 or self.crop_height == 0:
+            return image, label
+
+        if (self.crop_width <= image.shape[0]) and (self.crop_height <= image.shape[1]):
+            x = np.random.randint(0, image.shape[0]-self.crop_width)
+            y = np.random.randint(0, image.shape[1]-self.crop_height)
+
+            return image[x:x+self.crop_width, y:y+self.crop_height], label[x:x+self.crop_width, y:y+self.crop_height]
+        else:
+            raise Exception(
+                'Crop shape (%d, %d) exceeds image dimensions (%d, %d)!'.format(
+                    (self.crop_width, self.crop_height, image.shape[0], image.shape[1])))
 
     def _label_image_to_category(
             self,
@@ -235,6 +284,7 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
                 try:
                     image = np.array(Image.open(train_images_paths[i]))
                     label = self._label_image_to_category(np.array(Image.open(train_labels_paths[i])))
+                    image, label = self._random_crop(image, label)
                     X.append(image)
                     y.append(label)
 
