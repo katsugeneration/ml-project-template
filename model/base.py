@@ -1,7 +1,7 @@
 from typing import Tuple, List, Dict, Any, Union
 import pathlib
 import tensorflow as tf
-from dataset.base import ImageClassifierDatasetBase
+from dataset.base import ImageClassifierDatasetBase, ImageSegmentationDatasetBase
 
 
 class ModelBase(object):
@@ -72,6 +72,7 @@ class KerasImageClassifierBase(KerasModelBase):
         momentum (float): momentum value.
         clipnorm (float): clipnorm value
         lr_step_decay (bool): whether to use step learning rate decay.
+        decay (float): learning rate decay parameter.
 
     """
 
@@ -84,6 +85,7 @@ class KerasImageClassifierBase(KerasModelBase):
             momentum: float = 0.9,
             clipnorm: float = 1.0,
             lr_step_decay: bool = True,
+            decay: float = 0.0,
             **kwargs: Any) -> None:
         """Intialize parameter and build model."""
         super(KerasImageClassifierBase, self).__init__(**kwargs)
@@ -155,3 +157,9 @@ class KerasImageClassifierBase(KerasModelBase):
 
         """
         self.model.save_weights(str(path))
+
+
+class KerasImageSegmentationBase(KerasImageClassifierBase):
+    """Keras image segmentation model base."""
+
+    pass

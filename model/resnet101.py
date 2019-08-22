@@ -3,7 +3,6 @@
 from typing import Any, List
 import tensorflow as tf
 from model.base import KerasImageClassifierBase
-from model.se_block import SEBlock
 
 
 class ResNet101(KerasImageClassifierBase):

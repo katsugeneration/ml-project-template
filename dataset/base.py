@@ -130,3 +130,9 @@ class BinaryImageClassifierDataset(ImageClassifierDatasetBase):
         y_test = tf.keras.utils.to_categorical(self.y_test)
         self.eval_steps_per_epoch = len(self.x_test) // self.batch_size
         return self.eval_data_gen.flow(self.x_test, y=y_test, batch_size=self.batch_size)
+
+
+class ImageSegmentationDatasetBase(ImageClassifierDatasetBase):
+    """Image segmentation dataset loader base class."""
+
+    pass

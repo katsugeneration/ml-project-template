@@ -2,7 +2,7 @@ from typing import Any
 import tensorflow as tf
 import numpy as np
 from dataset.base import ImageSegmentationDatasetBase
-from model.base import KerasModelBase, KerasImageClassifierBase
+from model.base import KerasImageSegmentationBase, KerasImageClassifierBase
 
 
 def Upsampling(inputs, feature_map_shape):
@@ -61,7 +61,7 @@ def PyramidPoolingModule(inputs, feature_map_shape):
     return res
 
 
-class PSPNet(KerasModelBase):
+class PSPNet(KerasImageSegmentationBase):
     """PSPNet implementation.
 
     Args:
@@ -72,19 +72,17 @@ class PSPNet(KerasModelBase):
 
     def __init__(
             self,
-            dataset: ImageSegmentationDatasetBase,
             frontend: KerasImageClassifierBase,
             **kwargs: Any) -> None:
         """Intialize parameter and build model."""
-        # initialize params
-        self.dataset = dataset
+        super(PSPNet, self).__init__(**kwargs)
 
+        # initialize params
         inputs = frontend.model.inputs
         hiddens = frontend.model.layers[35].output
 
         # extract final feature maps
-        feature_map_shape = [int(x / 8.0) for x in dataset.input_shape[:2]]
-        print(feature_map_shape)
+        feature_map_shape = [int(x / 8.0) for x in self.dataset.input_shape[:2]]
         x = PyramidPoolingModule(hiddens, feature_map_shape=feature_map_shape)
 
         x = tf.keras.layers.Conv2D(512, [3, 3], padding='same')(x)
@@ -100,6 +98,8 @@ class PSPNet(KerasModelBase):
         x = ConvBlock(x, 64)
 
         # calc likelihood
-        outputs = tf.keras.layers.Conv2D(dataset.category_nums, [1, 1])(x)
+        x = tf.keras.layers.Conv2D(self.dataset.category_nums, [1, 1])(x)
+        outputs = tf.keras.layers.Activation(tf.nn.softmax)(x)
 
         self.model = tf.keras.Model(inputs=inputs, outputs=outputs)
+        self.setup()
