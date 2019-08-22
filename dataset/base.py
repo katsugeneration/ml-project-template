@@ -1,7 +1,10 @@
 # Copyright 2019 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
 from typing import Tuple, Any, Generator, Union
+import pathlib
+import pandas as pd
 import numpy as np
+from PIL import Image
 import tensorflow as tf
 from dataset.mixup import MixupGenerator
 
@@ -136,3 +139,67 @@ class ImageSegmentationDatasetBase(ImageClassifierDatasetBase):
     """Image segmentation dataset loader base class."""
 
     pass
+
+
+class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
+    """Directory loaded classifier dataset.
+
+    Args:
+        directory (str): path to image directory.
+                         this dirctory contains `train`, `train_labels`, `val` and `val_labels` directories,
+                         which have correspondence input images or label images.
+        class_csv (str): path to class color definition csv. each rows has `name`, `r`, `g` and `b` columns.
+
+    """
+
+    def __init__(
+            self,
+            directory: str,
+            class_csv: str,
+            **kwargs: Any) -> None:
+        """Initilize params."""
+        super(DirectoryImageSegmentationDataset, self).__init__(**kwargs)
+        self.directory = pathlib.Path(directory)
+        self.class_dict: pd.DataFrame = pd.read_csv(class_csv)
+
+    def _label_image_to_category(
+            self,
+            image: np.array) -> np.array:
+        """Convert label image to category number list.
+
+        Args:
+            image (np.array): image array. shape is H x W x 3
+
+        Return:
+            label (np.array): label array. shape is H x W x category_nums
+
+        """
+        label = np.ones(image.shape[:2]) * len(self.class_dict)
+        for i, r in self.class_dict.iterrows():
+            equality = np.equal(image, [r['r'], r['g'], r['b']]).all(axis=-1)
+            label[equality] = i
+        return label
+
+    def training_data(self) -> Tuple[np.array, np.array]:
+        """Return training dataset.
+
+        Return:
+            dataset (Tuple[np.array, np.array]): training dataset pair
+
+        """
+        train_images = []
+        for path in sorted(self.directory.joinpath('train').glob('*')):
+            try:
+                train_images.append(np.array(Image.open(path)))
+            except OSError:
+                pass
+
+        train_labels = []
+        for path in sorted(self.directory.joinpath('train_labels').glob('*')):
+            try:
+                train_labels.append(self._label_image_to_category(np.array(Image.open(path))))
+            except OSError:
+                pass
+        train_labels = tf.keras.utils.to_categorical(train_labels)
+
+        return (train_images, train_labels)
