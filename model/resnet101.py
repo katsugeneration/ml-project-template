@@ -7,13 +7,7 @@ from model.se_block import SEBlock
 
 
 class ResNet101(KerasImageClassifierBase):
-    """ResNet implementation bottleneck and pre-ctivation style with 101 layers.
-
-    Args:
-        block_nums (int): number of block units.
-        use_se (bool): whether to use squeeze-and-excitation block
-
-    """
+    """ResNet implementation bottleneck and pre-ctivation style with 101 layers."""
 
     def __init__(
             self,
