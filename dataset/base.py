@@ -1,6 +1,6 @@
 # Copyright 2019 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
-from typing import Tuple, Any, Generator, Union
+from typing import Tuple, Any, Generator, Union, List
 import pathlib
 import pandas as pd
 import numpy as np
@@ -161,6 +161,7 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
         super(DirectoryImageSegmentationDataset, self).__init__(**kwargs)
         self.directory = pathlib.Path(directory)
         self.class_dict: pd.DataFrame = pd.read_csv(class_csv)
+        self.category_nums = len(self.class_dict)
 
     def _label_image_to_category(
             self,
@@ -174,11 +175,11 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             label (np.array): label array. shape is H x W x category_nums
 
         """
-        label = np.ones(image.shape[:2]) * len(self.class_dict)
+        label = np.ones(image.shape[:2]) * self.category_nums
         for i, r in self.class_dict.iterrows():
             equality = np.equal(image, [r['r'], r['g'], r['b']]).all(axis=-1)
             label[equality] = i
-        return label
+        return tf.keras.utils.to_categorical(label, num_classes=self.category_nums)
 
     def training_data(self) -> Tuple[np.array, np.array]:
         """Return training dataset.
@@ -200,6 +201,46 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
                 train_labels.append(self._label_image_to_category(np.array(Image.open(path))))
             except OSError:
                 pass
-        train_labels = tf.keras.utils.to_categorical(train_labels)
 
+        train_data = self.train_data_gen.random_transform(np.concatenate([train_images, train_labels], axis=-1))
+        train_images = train_data[:, :, :, :3]
+        train_labels = train_data[:, :, :, 3:]
         return (train_images, train_labels)
+
+    def training_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
+        """Return training dataset.
+
+        Return:
+            dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
+
+        """
+        train_images_paths = sorted(self.directory.joinpath('train').glob('*'))
+        train_labels_paths = sorted(self.directory.joinpath('train_labels').glob('*'))
+        sample_num = len(train_images_paths)
+
+        count = 0
+        X: List = []
+        y: List = []
+
+        while True:
+            indexes = np.arange(sample_num)
+            np.random.shuffle(indexes)
+
+            for i in indexes:
+                if count == self.batch_size:
+                    count = 0
+                    X = []
+                    y = []
+
+                try:
+                    image = np.array(Image.open(train_images_paths[i]))
+                    label = self._label_image_to_category(np.array(Image.open(train_labels_paths[i])))
+                    X.append(image)
+                    y.append(label)
+
+                    count += 1
+                    if count == self.batch_size:
+                        train_data = self.train_data_gen.random_transform(np.concatenate([X, y], axis=-1))
+                        yield train_data[:, :, :, :3], train_data[:, :, :, 3:]
+                except OSError:
+                    pass
