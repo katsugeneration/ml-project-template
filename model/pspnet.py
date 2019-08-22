@@ -1,8 +1,8 @@
 from typing import Any
 import tensorflow as tf
 import numpy as np
-from dataset.base import ImageSegmentationDatasetBase
-from model.base import KerasImageSegmentationBase, KerasImageClassifierBase
+from model.base import KerasImageSegmentationBase
+from model.resnet101 import ResNet101
 
 
 def Upsampling(inputs, feature_map_shape):
@@ -66,16 +66,19 @@ class PSPNet(KerasImageSegmentationBase):
 
     Args:
         dataset (ImageSegmentationDatasetBase): dataset object.
-        frontend (KerasImageClassifierBase): base classifier object.
+        frontend_naem (str): base classifier name.
 
     """
 
     def __init__(
             self,
-            frontend: KerasImageClassifierBase,
+            frontend_name: str,
             **kwargs: Any) -> None:
         """Intialize parameter and build model."""
         super(PSPNet, self).__init__(**kwargs)
+
+        if frontend_name == 'resnet101':
+            frontend = ResNet101(dataset=self.dataset)
 
         # initialize params
         inputs = frontend.model.inputs
