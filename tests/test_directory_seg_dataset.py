@@ -10,6 +10,16 @@ class TestDirectoryImageSegmentationDataset(object):
                 directory='tests/CamVid',
                 class_csv='tests/CamVid/class_dict.csv')
 
+    def test_get_train_data(self):
+        dataset = DirectoryImageSegmentationDataset(
+                batch_size=8,
+                directory='tests/CamVid',
+                class_csv='tests/CamVid/class_dict.csv')
+        x, y = dataset.training_data()
+        eq_(x.shape[1:3], (720, 960))
+        eq_(x[0].shape[:2], y[0].shape[:2])
+        eq_(len(y[0].shape), 3)
+
     def test_get_train_data_generator(self):
         dataset = DirectoryImageSegmentationDataset(
                 batch_size=8,

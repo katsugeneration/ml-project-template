@@ -231,6 +231,64 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             label[equality] = i
         return tf.keras.utils.to_categorical(label, num_classes=self.category_nums)
 
+    def _load_data(
+            self,
+            image_path: str,
+            label_path: str) -> Tuple[np.array, np.array]:
+        """Load one data.
+
+        Args:
+            image_path (str): path to image.
+            label_path (str): path to correspondence label.
+
+        Return:
+            image (np.array): image object.
+            label (mp.array): correspondence label object.
+        """
+        try:
+            image = np.array(Image.open(image_path))
+            label = self._label_image_to_category(np.array(Image.open(label_path)))
+            image, label = self._random_crop(image, label)
+            train_data = self.train_data_gen.random_transform(np.concatenate([image, label], axis=-1))
+            return train_data[:, :, :3], train_data[:, :, 3:]
+        except OSError:
+            return None, None
+
+    def _data(
+            self,
+            image_path: str,
+            label_path: str) -> Tuple[np.array, np.array]:
+        """Return training dataset.
+
+        Args:
+            image_path (str): image directory name
+            label_path (str): label directory name
+
+        Return:
+            dataset (Tuple[np.array, np.array]): training dataset pair
+
+        """
+        image_paths = sorted(self.directory.joinpath(image_path).glob('*'))
+        label_paths = sorted(self.directory.joinpath(label_path).glob('*'))
+        assert len(label_paths) == len(label_paths)
+
+        pool = multiprocessing.pool.ThreadPool()
+        results = []
+        for image, label in zip(image_paths, label_paths):
+            results.append(pool.apply_async(self._load_data, (image, label)))
+
+        pool.close()
+        pool.join()
+
+        X: List = []
+        y: List = []
+        for res in results:
+            image, label = res.get()
+            if image is not None and label is not None:
+                X.append(image)
+                y.append(label)
+        return (np.array(X), np.array(y))
+
     def training_data(self) -> Tuple[np.array, np.array]:
         """Return training dataset.
 
@@ -238,24 +296,16 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             dataset (Tuple[np.array, np.array]): training dataset pair
 
         """
-        train_images = []
-        for path in sorted(self.directory.joinpath('train').glob('*')):
-            try:
-                train_images.append(np.array(Image.open(path)))
-            except OSError:
-                pass
+        return self._data('train', 'train_labels')
 
-        train_labels = []
-        for path in sorted(self.directory.joinpath('train_labels').glob('*')):
-            try:
-                train_labels.append(self._label_image_to_category(np.array(Image.open(path))))
-            except OSError:
-                pass
+    def eval_data(self) -> Tuple[np.array, np.array]:
+        """Return evaluation dataset.
 
-        train_data = self.train_data_gen.random_transform(np.concatenate([train_images, train_labels], axis=-1))
-        train_images = train_data[:, :, :, :3]
-        train_labels = train_data[:, :, :, 3:]
-        return (train_images, train_labels)
+        Return:
+            dataset (Tuple[np.array, np.array]): evaluation dataset pair
+
+        """
+        return self._data('val', 'val_labels')
 
     def _data_generator(
             self,
@@ -271,18 +321,10 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
 
         """
-        def load_data(i):
-            try:
-                image = np.array(Image.open(train_images_paths[i]))
-                label = self._label_image_to_category(np.array(Image.open(train_labels_paths[i])))
-                image, label = self._random_crop(image, label)
-                return image, label
-            except OSError:
-                return None, None
-
-        train_images_paths = sorted(self.directory.joinpath(image_path).glob('*'))
-        train_labels_paths = sorted(self.directory.joinpath(label_path).glob('*'))
-        sample_num = len(train_images_paths)
+        image_paths = sorted(self.directory.joinpath(image_path).glob('*'))
+        label_paths = sorted(self.directory.joinpath(label_path).glob('*'))
+        assert len(label_paths) == len(label_paths)
+        sample_num = len(image_paths)
 
         while True:
             indexes = np.arange(sample_num)
@@ -298,7 +340,7 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
 
                 for j in batch_ids:
                     results.append(
-                        pool.apply_async(load_data, (j,)))
+                        pool.apply_async(self._load_data, (image_paths[j], label_paths[j])))
 
                 for res in results:
                     image, label = res.get()
@@ -309,8 +351,7 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
                 pool.close()
                 pool.join()
 
-                train_data = self.train_data_gen.random_transform(np.concatenate([X, y], axis=-1))
-                yield train_data[:, :, :, :3], train_data[:, :, :, 3:]
+                yield np.array(X), np.array(y)
 
     def training_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
         """Return training dataset.
