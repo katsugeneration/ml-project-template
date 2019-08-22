@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 from typing import Tuple, Any, Generator, Union, List
 import pathlib
+import multiprocessing
 import pandas as pd
 import numpy as np
 from PIL import Image
@@ -270,37 +271,46 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
 
         """
+        def load_data(i):
+            try:
+                image = np.array(Image.open(train_images_paths[i]))
+                label = self._label_image_to_category(np.array(Image.open(train_labels_paths[i])))
+                image, label = self._random_crop(image, label)
+                return image, label
+            except OSError:
+                return None, None
+
         train_images_paths = sorted(self.directory.joinpath(image_path).glob('*'))
         train_labels_paths = sorted(self.directory.joinpath(label_path).glob('*'))
         sample_num = len(train_images_paths)
 
-        count = 0
-        X: List = []
-        y: List = []
-
         while True:
             indexes = np.arange(sample_num)
             np.random.shuffle(indexes)
+            itr_num = int(len(indexes) // (self.batch_size))
 
-            for i in indexes:
-                if count == self.batch_size:
-                    count = 0
-                    X = []
-                    y = []
+            for i in range(itr_num):
+                pool = multiprocessing.pool.ThreadPool()
+                batch_ids = indexes[i * self.batch_size:(i + 1) * self.batch_size]
+                results = []
+                X: List = []
+                y: List = []
 
-                try:
-                    image = np.array(Image.open(train_images_paths[i]))
-                    label = self._label_image_to_category(np.array(Image.open(train_labels_paths[i])))
-                    image, label = self._random_crop(image, label)
-                    X.append(image)
-                    y.append(label)
+                for j in batch_ids:
+                    results.append(
+                        pool.apply_async(load_data, (j,)))
 
-                    count += 1
-                    if count == self.batch_size:
-                        train_data = self.train_data_gen.random_transform(np.concatenate([X, y], axis=-1))
-                        yield train_data[:, :, :, :3], train_data[:, :, :, 3:]
-                except OSError:
-                    pass
+                for res in results:
+                    image, label = res.get()
+                    if image is not None and label is not None:
+                        X.append(image)
+                        y.append(label)
+
+                pool.close()
+                pool.join()
+
+                train_data = self.train_data_gen.random_transform(np.concatenate([X, y], axis=-1))
+                yield train_data[:, :, :, :3], train_data[:, :, :, 3:]
 
     def training_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
         """Return training dataset.
@@ -309,6 +319,7 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
 
         """
+        self.steps_per_epoch = len(list(self.directory.joinpath('train').glob('*'))) // self.batch_size
         return self._data_generator('train', 'train_labels')
 
     def eval_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
@@ -318,4 +329,5 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
 
         """
+        self.eval_steps_per_epoch = len(list(self.directory.joinpath('val').glob('*'))) // self.batch_size
         return self._data_generator('val', 'val_labels')
