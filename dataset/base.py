@@ -256,15 +256,22 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
         train_labels = train_data[:, :, :, 3:]
         return (train_images, train_labels)
 
-    def training_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
+    def _data_generator(
+            self,
+            image_path: str,
+            label_path: str) -> Union[tf.keras.utils.Sequence, Generator]:
         """Return training dataset.
+
+        Args:
+            image_path (str): image directory name
+            label_path (str): label directory name
 
         Return:
             dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
 
         """
-        train_images_paths = sorted(self.directory.joinpath('train').glob('*'))
-        train_labels_paths = sorted(self.directory.joinpath('train_labels').glob('*'))
+        train_images_paths = sorted(self.directory.joinpath(image_path).glob('*'))
+        train_labels_paths = sorted(self.directory.joinpath(label_path).glob('*'))
         sample_num = len(train_images_paths)
 
         count = 0
@@ -294,3 +301,21 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
                         yield train_data[:, :, :, :3], train_data[:, :, :, 3:]
                 except OSError:
                     pass
+
+    def training_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
+        """Return training dataset.
+
+        Return:
+            dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
+
+        """
+        return self._data_generator('train', 'train_labels')
+
+    def eval_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
+        """Return evaluation dataset.
+
+        Return:
+            dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
+
+        """
+        return self._data_generator('val', 'val_labels')
