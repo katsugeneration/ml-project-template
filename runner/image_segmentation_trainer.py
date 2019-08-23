@@ -2,12 +2,9 @@
 # Licensed under the MIT License.
 from typing import Dict, List, Any
 import pathlib
-from matplotlib import pyplot as plt
-import seaborn
 import numpy as np
-import pandas as pd
-from sklearn.metrics import confusion_matrix
 from runner.base import RunnerBase
+from runner import utils
 from dataset.base import DatasetBase, DirectoryImageSegmentationDataset
 from model.base import ModelBase
 from model.pspnet import PSPNet
@@ -48,16 +45,24 @@ class ImageSegmentationTrainer(RunnerBase):
 
         # save results
         y_pred, y_test = model.inference()
-        y_test = np.argmax(y_test, axis=-1)
-        y_pred = np.argmax(y_pred, axis=-1)
-        y_test = y_test.flatten()
-        y_pred = y_pred.flatten()
+        y_test = np.argmax(y_test, axis=-1).flatten()
+        y_pred = np.argmax(y_pred, axis=-1).flatten()
+        utils.save_confusion_matrix(
+            y_pred,
+            y_test,
+            dataset.category_nums,
+            log_path.joinpath('confusion_matrix.png'))
+        class_accuracies, prec, class_prec, rec, f1, iou = utils.evaluate_segmentation(
+                                                            y_pred, y_test, dataset.category_nums)
 
-        labels = list(range(10))
-        cm = confusion_matrix(y_test, y_pred, labels=labels)
-        df_cm = pd.DataFrame(cm, index=labels, columns=labels)
-        fig = plt.figure(figsize=(12.8, 7.2))
-        seaborn.heatmap(df_cm, cmap=plt.cm.Blues, annot=True)
-        fig.savefig(str(log_path.joinpath('confusion_matrix.png')))
+        # save to history
+        history['val_prec'] = [prec]
+        history['val_rec'] = [rec]
+        history['val_f1'] = [f1]
+        history['val_iou'] = [iou]
+        for i, acc in enumerate(class_accuracies):
+            history['val_acc_{:02d}'.format(i)] = [acc]
+        for i, prec in enumerate(class_prec):
+            history['val_prec_{:02d}'.format(i)] = [prec]
 
         return history
