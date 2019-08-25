@@ -48,6 +48,8 @@ class ResNet(KerasImageClassifierBase):
                 ]
 
                 residual_path = [
+                    initial_path[0],
+                    initial_path[1],
                     tf.keras.layers.Conv2D(
                             c,
                             kernel_size=(1, 1),
@@ -81,6 +83,8 @@ class ResNet(KerasImageClassifierBase):
 
                 if i == 0:
                     identity_path = [
+                            initial_path[0],
+                            initial_path[1],
                             tf.keras.layers.Conv2D(
                                 out_c,
                                 kernel_size=(1, 1),
@@ -93,7 +97,6 @@ class ResNet(KerasImageClassifierBase):
                     identity_path = []
 
                 self.blocks.append({
-                    "initial_path": initial_path,
                     "residual_path": residual_path,
                     "identity_path": identity_path,
                 })
@@ -115,8 +118,6 @@ class ResNet(KerasImageClassifierBase):
         x = self.start_conv(inputs)
 
         for b in self.blocks:
-            for l in b["initial_path"]:
-                x = l(x)
             residual = x
             for l in b["residual_path"]:
                 residual = l(residual)
