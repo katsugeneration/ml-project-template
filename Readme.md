@@ -46,11 +46,15 @@ Let's See below for details.
 - [Dataset settings and implementation](/dataset/Readme.md)
 - [Runner implementation](/runner/Readme.md)
 
+# Test and linting
+Run following command for testing and linting.
+```sh
+poetry run tox
+```
+
 # Todo
 - [] multiple task chain template
 - [] hyper parameter search template
-- [] test setting template
-- [] CI settings(mypy, flake8, pydocstyle etc...) template
 
 # License
 MIT License
