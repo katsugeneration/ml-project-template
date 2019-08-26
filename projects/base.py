@@ -1,6 +1,6 @@
 # Copyright 2019 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
-from typing import Any, List
+from typing import Any, List, Union
 from abc import abstractmethod
 import pathlib
 import luigi
@@ -10,6 +10,9 @@ import mlflow
 class ProjectBase(luigi.Task):
     """Mlflow project base extend luigi task."""
 
+    """For avoiding luigi cache parameter."""
+    name = luigi.Parameter(default='default')
+
     def __init__(
             self,
             *args: Any,
@@ -17,12 +20,12 @@ class ProjectBase(luigi.Task):
         super(ProjectBase, self).__init__(*args, **kwargs)
         self.experiment_id: int
         self.parameters: dict
-        self._run_object: mlflow.entities.Run
+        self._run_object: mlflow.entities.Run = None
 
-    def output(self) -> List[str]:
+    def output(self) -> Union[luigi.LocalTarget, List]:
         """Project output path."""
         try:
-            return [str(self.artifact_directory.joinpath('.finish'))]
+            return luigi.LocalTarget(str(self.artifact_directory.joinpath('.finish')))
         except Exception:
             return []
 
@@ -37,8 +40,7 @@ class ProjectBase(luigi.Task):
             mlflow.log_params(self.parameters)
             self._run_object = active_run
             self._run()
-        for p in self.output():
-            pathlib.Path(p).touch()
+        self.output().open('w').close()
 
     @property
     def artifact_directory(self) -> pathlib.Path:
@@ -67,10 +69,9 @@ class ProjectBase(luigi.Task):
         filter_string = " and ".join([
             "params.{} = '{}'".format(k, v) for k, v in self.parameters.items()])
         for run in client.search_runs(
-                [self.experiment_id],
+                [str(self.experiment_id)],
                 filter_string=filter_string,
-                run_view_type=mlflow.entities.ViewType.ACTIVE_ONLY,
-                order_by='start_time DESC'):
+                run_view_type=mlflow.entities.ViewType.ACTIVE_ONLY):
             return run
 
         return None
