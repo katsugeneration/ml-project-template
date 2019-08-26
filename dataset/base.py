@@ -247,7 +247,7 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
         """
         try:
             image = np.array(Image.open(image_path))
-            label = self._label_image_to_category(np.array(Image.open(label_path)))
+            label = self._label_image_to_category(np.array(Image.open(label_path).convert('RGB')))
             image, label = self._random_crop(image, label)
             train_data = self.train_data_gen.random_transform(np.concatenate([image, label], axis=-1))
             return train_data[:, :, :3], train_data[:, :, 3:]
