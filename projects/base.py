@@ -21,6 +21,7 @@ class ProjectBase(luigi.Task):
         self.experiment_id: int
         self.run_name: str
         self.parameters: dict
+        self.update: bool = False
         self._run_object: mlflow.entities.Run = None
 
     def output(self) -> Union[luigi.LocalTarget, List]:
@@ -66,14 +67,15 @@ class ProjectBase(luigi.Task):
         if self._run_object:
             return self._run_object
 
-        client = mlflow.tracking.MlflowClient()
-        filter_string = " and ".join(
-            ["params.{} = '{}'".format(k, v) for k, v in self.parameters.items()] +
-            ["tags.mlflow.runName = '{}'".format(self.run_name)])
-        for run in client.search_runs(
-                [str(self.experiment_id)],
-                filter_string=filter_string,
-                run_view_type=mlflow.entities.ViewType.ACTIVE_ONLY):
-            return run
+        if not self.update:
+            client = mlflow.tracking.MlflowClient()
+            filter_string = " and ".join(
+                ["params.{} = '{}'".format(k, v) for k, v in self.parameters.items()] +
+                ["tags.mlflow.runName = '{}'".format(self.run_name)])
+            for run in client.search_runs(
+                    [str(self.experiment_id)],
+                    filter_string=filter_string,
+                    run_view_type=mlflow.entities.ViewType.ACTIVE_ONLY):
+                return run
 
         return None

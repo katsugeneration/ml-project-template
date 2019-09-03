@@ -29,6 +29,7 @@ class RunOnceProject(ProjectBase):
             **kwargs: Any):
         super(RunOnceProject, self).__init__(*args, **kwargs)
         self.experiment_id = 0
+        self.update = True
 
         # parameter preprocessing
         with open(self.model_param_path, 'r') as f:
