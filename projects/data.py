@@ -34,12 +34,14 @@ class DataPrepareProject(ProjectBase):
 
 def create_data_prepare(
         projects: Dict[str, Callable],
-        parameters: Dict) -> Optional[DataPrepareProject]:
+        parameters: Dict,
+        update_task: str = '') -> Optional[DataPrepareProject]:
     """Create data prepare projects.
 
     Args:
         projects (Dict[str, Callable]): task name and task function dictionary.
         parameters (Dict): named parameters which have some project uses.
+        update_task (str): first update task name.
 
     Return
         project (Optional[DataPrepareProject]): last project.
@@ -47,12 +49,16 @@ def create_data_prepare(
     """
     project_names = list(projects.keys())
     before_project: Optional[DataPrepareProject] = None
+    update = False
     for task in project_names:
+        if update_task == task:
+            update = True
         params = {k: parameters[k] for k in projects[task].__code__.co_varnames if k in parameters}
         run_func = functools.partial(projects[task], **params)
         new_project_class = type(task, (DataPrepareProject, ), {
                                     'run_func': run_func,
                                     'parameters': params,
+                                    'update': update,
                                     'before_project': before_project,
                                     'run_name': '.'.join([projects[task].__module__, projects[task].__name__])})
         new_project = new_project_class()

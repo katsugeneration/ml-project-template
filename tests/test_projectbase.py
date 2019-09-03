@@ -1,7 +1,10 @@
 # Copyright 2019 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
+import pathlib
+import shutil
 from nose.tools import ok_, eq_
 import luigi
+import mlflow
 from projects.base import ProjectBase
 from tests.utils.dummy_schedular import DummyFactory
 
@@ -28,6 +31,13 @@ class DummyProject(ProjectBase):
 
 
 class TestProjectBase(object):
+    def setup(self):
+        mlflow.set_tracking_uri('file://' + str(pathlib.Path('./testrun').absolute()))
+
+    def teardown(self):
+        if pathlib.Path('./testrun').exists():
+            shutil.rmtree('./testrun')
+
     def test_init(self):
         project = DummyProject(param1=10)
         eq_(project.parameters, {"param1": 10, "param2": 2})
