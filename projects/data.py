@@ -20,7 +20,12 @@ class DataPrepareProject(ProjectBase):
 
     def _run(self) -> None:
         """Project running."""
-        self.run_func()
+        before_artifact_directory = None
+        if self.before_project is not None:
+            before_artifact_directory = self.before_project.artifact_directory
+        self.run_func(**{
+            'artifact_directory': self.artifact_directory,
+            'before_artifact_directory': before_artifact_directory})
 
     def requires(self) -> List[ProjectBase]:
         """Dependency projects."""
