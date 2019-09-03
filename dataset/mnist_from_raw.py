@@ -1,3 +1,5 @@
+# Copyright 2019 Katsuya Shimabukuro. All rights reserved.
+# Licensed under the MIT License.
 from typing import Any, List
 import pathlib
 import gzip
@@ -14,7 +16,7 @@ mnist_files = [
     't10k-images-idx3-ubyte',
     't10k-labels-idx1-ubyte']
 
-MNIST_FILE_NAME = 'mnist.npz'
+MNIST_FILE_NAME = 'mnst.npz'
 
 
 class MnistFromRawDataset(BinaryImageClassifierDataset):

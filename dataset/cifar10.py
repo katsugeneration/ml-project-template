@@ -1,3 +1,5 @@
+# Copyright 2019 Katsuya Shimabukuro. All rights reserved.
+# Licensed under the MIT License.
 from typing import Any
 import tensorflow as tf
 from dataset.base import BinaryImageClassifierDataset
