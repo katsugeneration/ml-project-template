@@ -21,7 +21,7 @@ class ProjectBase(luigi.Task):
         self.experiment_id: int
         self.run_name: str
         self.parameters: dict
-        self.update: bool = False
+        self.update: bool
         self._run_object: mlflow.entities.Run = None
 
     def output(self) -> Union[luigi.LocalTarget, List]:

@@ -5,3 +5,4 @@ projects:
     dataset.mnist_from_raw.decompose_data
 
 parameters: {}
+update_task: ''

@@ -58,7 +58,8 @@ class RunOnceProject(ProjectBase):
         self.before_project = create_data_prepare(
                                 {k: getattr(importlib.import_module(".".join(v.split('.')[:-1])), v.split('.')[-1])
                                     for k, v in self.preprocess_params['projects'].items()},
-                                self.preprocess_params['parameters'])
+                                self.preprocess_params['parameters'],
+                                self.preprocess_params['update_task'])
 
     def requires(self) -> List[Optional[ProjectBase]]:
         """Dependency projects."""
