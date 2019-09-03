@@ -19,6 +19,7 @@ class ProjectBase(luigi.Task):
             **kwargs: Any):
         super(ProjectBase, self).__init__(*args, **kwargs)
         self.experiment_id: int
+        self.run_name: str
         self.parameters: dict
         self._run_object: mlflow.entities.Run = None
 
@@ -36,7 +37,7 @@ class ProjectBase(luigi.Task):
 
     def run(self) -> None:
         """Luigi task run method implementation."""
-        with mlflow.start_run(experiment_id=self.experiment_id) as active_run:
+        with mlflow.start_run(experiment_id=self.experiment_id, run_name=self.run_name) as active_run:
             mlflow.log_params(self.parameters)
             self._run_object = active_run
             self._run()
@@ -66,8 +67,9 @@ class ProjectBase(luigi.Task):
             return self._run_object
 
         client = mlflow.tracking.MlflowClient()
-        filter_string = " and ".join([
-            "params.{} = '{}'".format(k, v) for k, v in self.parameters.items()])
+        filter_string = " and ".join(
+            ["params.{} = '{}'".format(k, v) for k, v in self.parameters.items()] +
+            ["tags.mlflow.runName = '{}'".format(self.run_name)])
         for run in client.search_runs(
                 [str(self.experiment_id)],
                 filter_string=filter_string,

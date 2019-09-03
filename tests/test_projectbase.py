@@ -21,6 +21,7 @@ class DummyProject(ProjectBase):
             "param2": 2
         }
         self._ran = False
+        self.run_name = 'dummy_project'
 
     def _run(self):
         self._ran = True

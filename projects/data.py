@@ -45,7 +45,7 @@ def create_data_prepare(
         project (Optional[DataPrepareProject]): last project.
 
     """
-    project_names = reversed(list(projects.keys()))
+    project_names = list(projects.keys())
     before_project: Optional[DataPrepareProject] = None
     for task in project_names:
         params = {k: parameters[k] for k in projects[task].__code__.co_varnames if k in parameters}
@@ -53,7 +53,8 @@ def create_data_prepare(
         new_project_class = type(task, (DataPrepareProject, ), {
                                     'run_func': run_func,
                                     'parameters': params,
-                                    'before_project': before_project})
+                                    'before_project': before_project,
+                                    'run_name': '.'.join([projects[task].__module__, projects[task].__name__])})
         new_project = new_project_class()
         before_project = new_project
 

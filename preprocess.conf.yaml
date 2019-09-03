@@ -1,0 +1,7 @@
+projects:
+  Download:
+    dataset.mnist_from_raw.download_data
+  Decompose:
+    dataset.mnist_from_raw.decompose_data
+
+parameters: {}

@@ -47,7 +47,7 @@ class TestProjectsData(object):
             b_value = b
 
         project = create_data_prepare(
-                        {'Test1': test1, 'Test2': test2},
+                        {'Test2': test2, 'Test1': test1},
                         {'a': 1, 'b': 2})
         run_result = luigi.build([project], worker_scheduler_factory=DummyFactory())
         ok_(run_result)
@@ -107,7 +107,7 @@ class TestProjectsData(object):
                 f.write('aaa')
 
         project = create_data_prepare(
-                        {'Test1': test1, 'Test2': test2},
+                        {'Test2': test2, 'Test1': test1},
                         {'a': 1, 'b': 2})
         run_result = luigi.build([project], worker_scheduler_factory=DummyFactory())
         ok_(run_result)

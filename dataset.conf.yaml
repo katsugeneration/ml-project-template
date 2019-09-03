@@ -1,3 +1,4 @@
 horizontal_flip: true
+data_path: '{{ before_artifact_directory }}'
 width_shift_range: 4
 height_shift_range: 4
