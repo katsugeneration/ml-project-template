@@ -68,3 +68,27 @@ class TestRunOnceProject(object):
         ok_(run_result)
         ok_(project.output().exists())
         ok_(project.artifact_directory.joinpath('model.h5').exists())
+
+    def test_run_once_with_before_preprocess(self):
+        _save_conf(
+            {
+                'epochs': 1
+            },
+            {
+                'data_path': '{{ search_preprocess_directory("dataset.mnist_from_raw.decompose_data", {}) }}'
+            },
+            {
+                'projects': OrderedDict(**{
+                    'Download': 'dataset.mnist_from_raw.download_data',
+                    'Decompose': 'dataset.mnist_from_raw.decompose_data',
+                })
+            })
+        project = RunOnceProject(**{
+            'runner': 'image_recognition_trainer',
+            'dataset': 'mnistraw',
+            'param_path': CONF_PATH,
+        })
+        run_result = luigi.build([project], worker_scheduler_factory=DummyFactory())
+        ok_(run_result)
+        ok_(project.output().exists())
+        ok_(project.artifact_directory.joinpath('model.h5').exists())

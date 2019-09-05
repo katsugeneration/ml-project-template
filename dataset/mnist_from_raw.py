@@ -16,7 +16,7 @@ mnist_files = [
     't10k-images-idx3-ubyte',
     't10k-labels-idx1-ubyte']
 
-MNIST_FILE_NAME = 'mnst.npz'
+MNIST_FILE_NAME = 'mnist.npz'
 
 
 class MnistFromRawDataset(BinaryImageClassifierDataset):

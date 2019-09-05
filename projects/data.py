@@ -1,6 +1,7 @@
 # Copyright 2019 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
 from typing import Any, Callable, Dict, List, Optional
+import importlib
 import pathlib
 import functools
 from projects.base import ProjectBase
@@ -25,9 +26,9 @@ class DataPrepareProject(ProjectBase):
         before_artifact_directory = None
         if self.before_project is not None:
             before_artifact_directory = self.before_project.artifact_directory
-        self.run_func(**{
-            'artifact_directory': self.artifact_directory,
-            'before_artifact_directory': before_artifact_directory})
+        self.run_func(
+            artifact_directory=self.artifact_directory,
+            before_artifact_directory=before_artifact_directory)
 
     def requires(self) -> List[ProjectBase]:
         """Dependency projects."""
@@ -100,18 +101,20 @@ def create_data_prepare(
 
 
 def search_preprocess_directory(
-        run_func: Callable,
+        func_name: str,
         parameters: Dict) -> pathlib.Path:
     """Return preprocess artifact directory.
 
     Args:
-        run_func (Callable): target preprocess function.
+        func_name (str): function full name started module name.
         parameters (Dict): target parameters.
 
     Return:
         path (pathlib.Path): artifact directory path.
 
     """
-    return mlflow_utils.search_run_directory(
-            _get_runname(run_func),
-            _get_valid_parameters(run_func, parameters))
+    run_func = getattr(importlib.import_module(".".join(func_name.split('.')[:-1])), func_name.split('.')[-1])
+    return mlflow_utils.run_to_run_directory(
+                mlflow_utils.search_run_object(
+                    _get_runname(run_func),
+                    _get_valid_parameters(run_func, parameters)))
