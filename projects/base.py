@@ -5,6 +5,7 @@ from abc import abstractmethod
 import pathlib
 import luigi
 import mlflow
+from projects.utils import mlflow_utils
 
 
 class ProjectBase(luigi.Task):
@@ -52,9 +53,7 @@ class ProjectBase(luigi.Task):
             path (pathlib.Path):  path to mlflow project artifacts.
 
         """
-        return pathlib.Path(
-                mlflow.tracking.artifact_utils.get_artifact_uri(
-                    self.run_object.info.run_id).split('://')[1])
+        return mlflow_utils.run_to_run_directory(self.run_object)
 
     @property
     def run_object(self) -> mlflow.entities.Run:
@@ -66,16 +65,6 @@ class ProjectBase(luigi.Task):
         """
         if self._run_object:
             return self._run_object
-
         if not self.update:
-            client = mlflow.tracking.MlflowClient()
-            filter_string = " and ".join(
-                ["params.{} = '{}'".format(k, v) for k, v in self.parameters.items()] +
-                ["tags.mlflow.runName = '{}'".format(self.run_name)])
-            for run in client.search_runs(
-                    [str(self.experiment_id)],
-                    filter_string=filter_string,
-                    run_view_type=mlflow.entities.ViewType.ACTIVE_ONLY):
-                return run
-
+            return mlflow_utils.search_run_object(self.run_name, self.parameters, self.experiment_id)
         return None

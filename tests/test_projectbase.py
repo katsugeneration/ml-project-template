@@ -58,19 +58,20 @@ class TestProjectBase(object):
         ok_(project.output().exists())
 
         project = DummyProject(param1=10, name='3')
+        project.update = False
         run_result = luigi.build([project], worker_scheduler_factory=DummyFactory())
         project.output().remove()
         ok_(run_result)
         ok_(not project._ran)
 
     def test_run_twice_case_update(self):
-        project = DummyProject(param1=10, name='2')
+        project = DummyProject(param1=10, name='4')
         run_result = luigi.build([project], worker_scheduler_factory=DummyFactory())
         ok_(run_result)
         ok_(project._ran)
         ok_(project.output().exists())
 
-        project = DummyProject(param1=10, name='3')
+        project = DummyProject(param1=10, name='5')
         project.update = True
         run_result = luigi.build([project], worker_scheduler_factory=DummyFactory())
         project.output().remove()
