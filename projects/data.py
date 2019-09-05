@@ -1,8 +1,10 @@
 # Copyright 2019 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
 from typing import Any, Callable, Dict, List, Optional
+import pathlib
 import functools
 from projects.base import ProjectBase
+from projects.utils import mlflow_utils
 
 
 class DataPrepareProject(ProjectBase):
@@ -32,6 +34,36 @@ class DataPrepareProject(ProjectBase):
         return [self.before_project]
 
 
+def _get_runname(
+        func: Callable) -> str:
+    """Return run name from function.
+
+    Args:
+        func (Callable): target function.
+
+    Return:
+        runname (str): run name string.
+
+    """
+    return '.'.join([func.__module__, func.__name__])
+
+
+def _get_valid_parameters(
+        func: Callable,
+        parameters: Dict) -> Dict:
+    """Extract valid parameter for target function.
+
+    Args:
+        func (Callable): target function.
+        parameters (Dict): candidate parameters.
+
+    Return:
+        valids (Dict): valid parameters.
+
+    """
+    return {k: parameters[k] for k in func.__code__.co_varnames if k in parameters}
+
+
 def create_data_prepare(
         projects: Dict[str, Callable],
         parameters: Dict,
@@ -53,15 +85,33 @@ def create_data_prepare(
     for task in project_names:
         if update_task == task:
             update = True
-        params = {k: parameters[k] for k in projects[task].__code__.co_varnames if k in parameters}
+        params = _get_valid_parameters(projects[task], parameters)
         run_func = functools.partial(projects[task], **params)
         new_project_class = type(task, (DataPrepareProject, ), {
                                     'run_func': run_func,
                                     'parameters': params,
                                     'update': update,
                                     'before_project': before_project,
-                                    'run_name': '.'.join([projects[task].__module__, projects[task].__name__])})
+                                    'run_name': _get_runname(projects[task])})
         new_project = new_project_class()
         before_project = new_project
 
     return before_project
+
+
+def search_preprocess_directory(
+        run_func: Callable,
+        parameters: Dict) -> pathlib.Path:
+    """Return preprocess artifact directory.
+
+    Args:
+        run_func (Callable): target preprocess function.
+        parameters (Dict): target parameters.
+
+    Return:
+        path (pathlib.Path): artifact directory path.
+
+    """
+    return mlflow_utils.search_run_directory(
+            _get_runname(run_func),
+            _get_valid_parameters(run_func, parameters))

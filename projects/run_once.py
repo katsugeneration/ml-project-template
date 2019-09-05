@@ -9,7 +9,7 @@ import luigi
 import mlflow
 import yaml
 from projects.base import ProjectBase
-from projects.data import create_data_prepare
+from projects.data import create_data_prepare, search_preprocess_directory
 
 
 class RunOnceProject(ProjectBase):
@@ -21,7 +21,6 @@ class RunOnceProject(ProjectBase):
     model_param_path = luigi.Parameter(default='model.conf.yaml')
     dataset_param_path = luigi.Parameter(default='dataset.conf.yaml')
     preprocess_param_path = luigi.Parameter(default='preprocess.conf.yaml')
-    logs = luigi.Parameter(default='logs')
 
     def __init__(
             self,
@@ -48,12 +47,18 @@ class RunOnceProject(ProjectBase):
             'model_param_path': self.model_param_path,
             'dataset_param_path': self.dataset_param_path,
             'preprocess_param_path': self.preprocess_param_path,
-            'logs': self.logs,
             **self.model_params,
             **self.dataset_params
         }
 
         self.run_name = '_'.join([self.runner, self.model, self.dataset])
+
+        if 'projects' not in self.preprocess_params:
+            self.preprocess_params['projects'] = {}
+        if 'parameters' not in self.preprocess_params:
+            self.preprocess_params['parameters'] = {}
+        if 'update_task' not in self.preprocess_params:
+            self.preprocess_params['update_task'] = ''
 
         self.before_project = create_data_prepare(
                                 {k: getattr(importlib.import_module(".".join(v.split('.')[:-1])), v.split('.')[-1])
@@ -66,17 +71,15 @@ class RunOnceProject(ProjectBase):
         return [self.before_project]
 
     def _run(self) -> None:
-        logs = pathlib.Path(self.logs)
-        if logs.exists():
-            shutil.rmtree(str(logs))
-        logs.mkdir(parents=True)
-
         # update parameter from local data.
+        before_artifact_directory = self.before_project.artifact_directory if self.before_project is not None else None
         variables = {
-            'before_artifact_directory': self.before_project.artifact_directory,
+            'before_artifact_directory': before_artifact_directory,
+            'preprocess_params': self.preprocess_params,
+            'search_preprocess_directory': search_preprocess_directory,
         }
         pattern = re.compile(r'{{(.*?)}}', flags=re.I | re.M)
-        self.dataset_params = {k: eval(pattern.match(v).groups()[0].strip(), variables)
+        self.dataset_params = {k: eval(pattern.sub(r'\1', v).strip(), variables)
                                if isinstance(v, str) and pattern.match(v) else v
                                for k, v in self.dataset_params.items()}
 
@@ -84,10 +87,9 @@ class RunOnceProject(ProjectBase):
         module = importlib.import_module('runner.' + self.runner)
         class_name = "".join(s[:1].upper() + s[1:] for s in self.runner.split('_'))
         c = getattr(module, class_name)
-        history = c().run(self.model, self.dataset, self.model_params, self.dataset_params, logs)
+        history = c().run(self.model, self.dataset, self.model_params, self.dataset_params, self.artifact_directory)
 
         # save to mlflow
         for k in history:
             for i in range(len(history[k])):
                 mlflow.log_metric(k, history[k][i], step=i)
-        mlflow.log_artifacts(str(logs))

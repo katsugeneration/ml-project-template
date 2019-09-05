@@ -12,9 +12,11 @@ from dataset.base import DatasetBase
 from dataset.mnist import MnistDataset
 from dataset.cifar10 import Cifar10Dataset
 from dataset.cifar100 import Cifar100Dataset
+from dataset.mnist_from_raw import MnistFromRawDataset
 from model.base import ModelBase
 from model.fcnn import FCNNClassifier
 from model.resnet import ResNet
+from model.resnet101 import ResNet101
 
 
 class ImageRecognitionTrainer(RunnerBase):
@@ -26,11 +28,13 @@ class ImageRecognitionTrainer(RunnerBase):
             'mnist': MnistDataset,
             'cifar10': Cifar10Dataset,
             'cifar100': Cifar100Dataset,
+            'mnistraw': MnistFromRawDataset,
         }
 
         self.models = {
             'fcnn': FCNNClassifier,
             'resnet': ResNet,
+            'resnet101': ResNet101,
         }
 
     def _run(
