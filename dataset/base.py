@@ -146,9 +146,10 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
     """Directory loaded classifier dataset.
 
     Args:
-        directory (str): path to image directory.
-                         this dirctory contains `train`, `train_labels`, `val` and `val_labels` directories,
-                         which have correspondence input images or label images.
+        train_image_directory (str): path to training image directory.
+        train_label_directory (str): path to training label directory.
+        test_image_directory (str): path to test image directory.
+        test_image_directory (str): path to test label directory.
         class_csv (str): path to class color definition csv. each rows has `name`, `r`, `g` and `b` columns.
         crop_width (int): crop width. if value is 0, we do not crop.
         crop_height (int): crop width. if value is 0, we do not crop.
@@ -157,18 +158,24 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
 
     def __init__(
             self,
-            directory: str,
+            train_image_directory: str,
+            train_label_directory: str,
+            test_image_directory: str,
+            test_label_directory: str,
             class_csv: str,
             crop_width: int = 0,
             crop_height: int = 0,
             **kwargs: Any) -> None:
         """Initilize params."""
         super(DirectoryImageSegmentationDataset, self).__init__(**kwargs)
-        self.directory = pathlib.Path(directory)
+        self.train_image_directory = pathlib.Path(train_image_directory)
+        self.train_label_directory = pathlib.Path(train_label_directory)
+        self.test_image_directory = pathlib.Path(test_image_directory)
+        self.test_label_directory = pathlib.Path(test_label_directory)
         self.class_dict: pd.DataFrame = pd.read_csv(class_csv)
         self.category_nums = len(self.class_dict)
 
-        for path in self.directory.joinpath('train').glob('*'):
+        for path in self.train_image_directory.glob('*'):
             try:
                 image = np.array(Image.open(path))
             except OSError:
@@ -256,20 +263,20 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
 
     def _data(
             self,
-            image_path: str,
-            label_path: str) -> Tuple[np.array, np.array]:
+            image_path: pathlib.Path,
+            label_path: pathlib.Path) -> Tuple[np.array, np.array]:
         """Return training dataset.
 
         Args:
-            image_path (str): image directory name
-            label_path (str): label directory name
+            image_path (pathlib.Path): image directory path
+            label_path (pathlib.Path): label directory path
 
         Return:
             dataset (Tuple[np.array, np.array]): training dataset pair
 
         """
-        image_paths = sorted(self.directory.joinpath(image_path).glob('*'))
-        label_paths = sorted(self.directory.joinpath(label_path).glob('*'))
+        image_paths = sorted(image_path.glob('*'))
+        label_paths = sorted(label_path.glob('*'))
         assert len(label_paths) == len(label_paths)
 
         pool = multiprocessing.pool.ThreadPool()
@@ -296,7 +303,7 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             dataset (Tuple[np.array, np.array]): training dataset pair
 
         """
-        return self._data('train', 'train_labels')
+        return self._data(self.train_image_directory, self.train_label_directory)
 
     def eval_data(self) -> Tuple[np.array, np.array]:
         """Return evaluation dataset.
@@ -305,24 +312,24 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             dataset (Tuple[np.array, np.array]): evaluation dataset pair
 
         """
-        return self._data('val', 'val_labels')
+        return self._data(self.test_image_directory, self.test_label_directory)
 
     def _data_generator(
             self,
-            image_path: str,
-            label_path: str) -> Union[tf.keras.utils.Sequence, Generator]:
+            image_path: pathlib.Path,
+            label_path: pathlib.Path) -> Union[tf.keras.utils.Sequence, Generator]:
         """Return training dataset.
 
         Args:
-            image_path (str): image directory name
-            label_path (str): label directory name
+            image_path (pathlib.Path): image directory path
+            label_path (pathlib.Path): label directory path
 
         Return:
             dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
 
         """
-        image_paths = sorted(self.directory.joinpath(image_path).glob('*'))
-        label_paths = sorted(self.directory.joinpath(label_path).glob('*'))
+        image_paths = sorted(image_path.glob('*'))
+        label_paths = sorted(label_path.glob('*'))
         assert len(label_paths) == len(label_paths)
         sample_num = len(image_paths)
 
@@ -360,8 +367,8 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
 
         """
-        self.steps_per_epoch = len(list(self.directory.joinpath('train').glob('*'))) // self.batch_size
-        return self._data_generator('train', 'train_labels')
+        self.steps_per_epoch = len(list(self.train_image_directory.glob('*'))) // self.batch_size
+        return self._data_generator(self.train_image_directory, self.train_label_directory)
 
     def eval_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
         """Return evaluation dataset.
@@ -370,5 +377,5 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
 
         """
-        self.eval_steps_per_epoch = len(list(self.directory.joinpath('val').glob('*'))) // self.batch_size
-        return self._data_generator('val', 'val_labels')
+        self.eval_steps_per_epoch = len(list(self.test_image_directory.glob('*'))) // self.batch_size
+        return self._data_generator(self.test_image_directory, self.test_label_directory)
