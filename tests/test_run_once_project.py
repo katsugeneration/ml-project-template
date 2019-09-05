@@ -11,21 +11,18 @@ from projects.run_once import RunOnceProject
 from tests.utils.dummy_schedular import DummyFactory
 
 
-MODEL_CONF_PATH = 'tests/model.conf.yaml'
-DATASET_CONF_PATH = 'tests/dataset.conf.yaml'
-PREPROCESS_CONF_PATH = 'tests/preprocess.conf.yaml'
+CONF_PATH = 'tests/params.yaml'
 
 
 def _save_conf(model, dataset, preprocess):
     yaml.add_representer(
         OrderedDict,
         lambda dumper, instance: dumper.represent_mapping('tag:yaml.org,2002:map', instance.items()))
-    with open(MODEL_CONF_PATH, 'w') as f:
-        yaml.dump(model, f)
-    with open(DATASET_CONF_PATH, 'w') as f:
-        yaml.dump(dataset, f)
-    with open(PREPROCESS_CONF_PATH, 'w') as f:
-        yaml.dump(preprocess, f)
+    with open(CONF_PATH, 'w') as f:
+        yaml.dump({
+            'model': model,
+            'dataset': dataset,
+            'preprocess': preprocess}, f)
 
 
 class TestRunOnceProject(object):
@@ -35,17 +32,13 @@ class TestRunOnceProject(object):
     def teardown(self):
         if pathlib.Path('./testrun').exists():
             shutil.rmtree('./testrun')
-        pathlib.Path(MODEL_CONF_PATH).unlink()
-        pathlib.Path(DATASET_CONF_PATH).unlink()
-        pathlib.Path(PREPROCESS_CONF_PATH).unlink()
+        pathlib.Path(CONF_PATH).unlink()
 
     def test_run_once(self):
         _save_conf({'epochs': 1}, {}, {})
         project = RunOnceProject(**{
             'runner': 'image_recognition_trainer',
-            'model_param_path': MODEL_CONF_PATH,
-            'dataset_param_path': DATASET_CONF_PATH,
-            'preprocess_param_path': PREPROCESS_CONF_PATH
+            'param_path': CONF_PATH,
         })
         run_result = luigi.build([project], worker_scheduler_factory=DummyFactory())
         ok_(run_result)
@@ -69,9 +62,7 @@ class TestRunOnceProject(object):
         project = RunOnceProject(**{
             'runner': 'image_recognition_trainer',
             'dataset': 'mnistraw',
-            'model_param_path': MODEL_CONF_PATH,
-            'dataset_param_path': DATASET_CONF_PATH,
-            'preprocess_param_path': PREPROCESS_CONF_PATH
+            'param_path': CONF_PATH,
         })
         run_result = luigi.build([project], worker_scheduler_factory=DummyFactory())
         ok_(run_result)

@@ -18,9 +18,7 @@ class RunOnceProject(ProjectBase):
     runner = luigi.Parameter()
     model = luigi.Parameter('fcnn')
     dataset = luigi.Parameter('mnist')
-    model_param_path = luigi.Parameter(default='model.conf.yaml')
-    dataset_param_path = luigi.Parameter(default='dataset.conf.yaml')
-    preprocess_param_path = luigi.Parameter(default='preprocess.conf.yaml')
+    param_path = luigi.Parameter(default='params.yaml')
 
     def __init__(
             self,
@@ -31,22 +29,18 @@ class RunOnceProject(ProjectBase):
         self.update = True
 
         # parameter preprocessing
-        with open(self.model_param_path, 'r') as f:
-            self.model_params = yaml.full_load(f)
+        with open(self.param_path, 'r') as f:
+            params = yaml.full_load(f)
 
-        with open(self.dataset_param_path, 'r') as f:
-            self.dataset_params = yaml.full_load(f)
-
-        with open(self.preprocess_param_path, 'r') as f:
-            self.preprocess_params = yaml.full_load(f)
+        self.model_params = params['model']
+        self.dataset_params = params['dataset']
+        self.preprocess_params = params['preprocess']
 
         self.parameters = {
             'runner': self.runner,
             'model': self.model,
             'dataset': self.dataset,
-            'model_param_path': self.model_param_path,
-            'dataset_param_path': self.dataset_param_path,
-            'preprocess_param_path': self.preprocess_param_path,
+            'param_path': self.param_path,
             **self.model_params,
             **self.dataset_params
         }
