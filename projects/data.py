@@ -1,6 +1,7 @@
 # Copyright 2019 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
 from typing import Any, Callable, Dict, List, Optional
+import re
 import importlib
 import pathlib
 import functools
@@ -17,7 +18,7 @@ class DataPrepareProject(ProjectBase):
             **kwargs: Any):
         super(DataPrepareProject, self).__init__(*args, **kwargs)
         self.experiment_id = 0
-        self.run_func: Callable
+        self.run_func: List[Callable]
         self.parameters: Dict
         self.before_project: ProjectBase
 
@@ -26,9 +27,20 @@ class DataPrepareProject(ProjectBase):
         before_artifact_directory = None
         if self.before_project is not None:
             before_artifact_directory = self.before_project.artifact_directory
-        self.run_func(
-            artifact_directory=self.artifact_directory,
-            before_artifact_directory=before_artifact_directory)
+
+        variables = {
+            'before_artifact_directory': before_artifact_directory,
+            'preprocess_params': self.parameters,
+            'search_preprocess_directory': search_preprocess_directory,
+        }
+        pattern = re.compile(r'{{(.*?)}}', flags=re.I | re.M)
+        func_params = {k: eval(pattern.sub(r'\1', v).strip(), variables)
+                       if isinstance(v, str) and pattern.match(v) else v
+                       for k, v in self.parameters.items()}
+
+        self.run_func[0](**dict({
+            'artifact_directory': self.artifact_directory,
+            'before_artifact_directory': before_artifact_directory}, **func_params))
 
     def requires(self) -> List[ProjectBase]:
         """Dependency projects."""
@@ -87,13 +99,14 @@ def create_data_prepare(
         if update_task == task:
             update = True
         params = _get_valid_parameters(projects[task], parameters)
-        run_func = functools.partial(projects[task], **params)
+        run_func = projects[task]
+
         new_project_class = type(task, (DataPrepareProject, ), {
-                                    'run_func': run_func,
+                                    'run_func': [run_func],
                                     'parameters': params,
                                     'update': update,
                                     'before_project': before_project,
-                                    'run_name': _get_runname(projects[task])})
+                                    'run_name': _get_runname(run_func)})
         new_project = new_project_class()
         before_project = new_project
 
