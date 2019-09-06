@@ -1,7 +1,7 @@
-from typing import Tuple, List, Dict, Any, Union
+from typing import Tuple, List, Dict, Any, Union, Optional
 import pathlib
 import tensorflow as tf
-from dataset.base import ImageClassifierDatasetBase, ImageSegmentationDatasetBase
+from dataset.base import ImageClassifierDatasetBase
 
 
 class ModelBase(object):
@@ -86,6 +86,7 @@ class KerasImageClassifierBase(KerasModelBase):
             clipnorm: float = 1.0,
             lr_step_decay: bool = True,
             decay: float = 0.0,
+            weighted_logits: Optional[List[float]] = None,
             **kwargs: Any) -> None:
         """Intialize parameter and build model."""
         super(KerasImageClassifierBase, self).__init__(**kwargs)
@@ -96,6 +97,7 @@ class KerasImageClassifierBase(KerasModelBase):
         self.momentum = momentum
         self.clipnorm = clipnorm
         self.lr_step_decay = lr_step_decay
+        self.weighted_logits = weighted_logits
 
     def setup(self) -> None:
         """Set optimizer to model."""
@@ -107,9 +109,23 @@ class KerasImageClassifierBase(KerasModelBase):
                 'clipnorm': self.clipnorm
                 }})
 
+        def weighted_logits(
+                y_true: List,
+                y_pred: List) -> float:
+            """Return weighted loss."""
+            return tf.nn.weighted_cross_entropy_with_logits(
+                        logits=y_pred,
+                        labels=y_true,
+                        pos_weight=tf.constant(self.weighted_logits))
+
+        if self.weighted_logits is None:
+            loss = tf.keras.losses.categorical_crossentropy
+        else:
+            loss = weighted_logits
+
         self.model.compile(
             optimizer=optimizer,
-            loss='categorical_crossentropy',
+            loss=loss,
             metrics=['accuracy'])
 
     def train(self) -> Dict[str, List[Any]]:
