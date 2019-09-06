@@ -238,3 +238,24 @@ class TestProjectsData(object):
         ok_(project.requires()[0].output().exists())
         ok_(do_test1)
         eq_(a_value, 'aaa')
+
+    def test_create_data_prepare_with_param_func_and_large_parameter(self):
+        do_test1 = False
+        a_value = None
+        large_param = 'b' * 251
+
+        def test1(a, artifact_directory=None, before_artifact_directory=None):
+            nonlocal do_test1
+            nonlocal a_value
+            do_test1 = True
+            a_value = a
+
+        project = create_data_prepare(
+                        {'Test2': _test_global, 'Test1': test1},
+                        {'a': "{{ search_preprocess_directory('tests.test_projects_data._test_global', {'b': 'b'*251}).joinpath('aaa').open('r').read() }}", 'b': large_param})
+        run_result = luigi.build([project], worker_scheduler_factory=DummyFactory())
+        ok_(run_result)
+        ok_(project.output().exists())
+        ok_(project.requires()[0].output().exists())
+        ok_(do_test1)
+        eq_(a_value, 'aaa')
