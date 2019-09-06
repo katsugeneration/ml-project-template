@@ -1,6 +1,6 @@
 # Copyright 2019 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Iterable
 import re
 import importlib
 import pathlib
@@ -20,7 +20,37 @@ class DataPrepareProject(ProjectBase):
         self.experiment_id = 0
         self.run_func: List[Callable]
         self.parameters: Dict
+        self.preprocess_params: Dict
         self.before_project: ProjectBase
+
+    def _parameter_evaluation(
+            self,
+            params: Any,
+            variables: Dict) -> Any:
+        """Dynamic parameter evaluation.
+
+        Args:
+            params (Any): target parameter dictionary.
+            variables (Dict): evaluation use params.
+
+        Return:
+            values (Any): evaluated parameter values.
+
+        """
+        if isinstance(params, str):
+            pattern = re.compile(r'{{(.*?)}}', flags=re.I | re.M)
+            if pattern.match(params):
+                return eval(pattern.sub(r'\1', params).strip(), variables)
+            else:
+                return params
+
+        elif isinstance(params, dict):
+            return {k: self._parameter_evaluation(v, variables) for k, v in params.items()}
+
+        elif isinstance(params, list):
+            return [self._parameter_evaluation(v, variables) for v in params]
+
+        return params
 
     def _run(self) -> None:
         """Project running."""
@@ -30,13 +60,10 @@ class DataPrepareProject(ProjectBase):
 
         variables = {
             'before_artifact_directory': before_artifact_directory,
-            'preprocess_params': self.parameters,
+            'preprocess_params': self.preprocess_params,
             'search_preprocess_directory': search_preprocess_directory,
         }
-        pattern = re.compile(r'{{(.*?)}}', flags=re.I | re.M)
-        func_params = {k: eval(pattern.sub(r'\1', v).strip(), variables)
-                       if isinstance(v, str) and pattern.match(v) else v
-                       for k, v in self.parameters.items()}
+        func_params = self._parameter_evaluation(self.parameters, variables)
 
         self.run_func[0](**dict({
             'artifact_directory': self.artifact_directory,
@@ -104,6 +131,7 @@ def create_data_prepare(
         new_project_class = type(task, (DataPrepareProject, ), {
                                     'run_func': [run_func],
                                     'parameters': params,
+                                    'preprocess_params': parameters,
                                     'update': update,
                                     'before_project': before_project,
                                     'run_name': _get_runname(run_func)})

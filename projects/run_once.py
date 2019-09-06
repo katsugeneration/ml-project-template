@@ -67,7 +67,7 @@ class RunOnceProject(ProjectBase):
         before_artifact_directory = self.before_project.artifact_directory if self.before_project is not None else None
         variables = {
             'before_artifact_directory': before_artifact_directory,
-            'preprocess_params': self.preprocess_params,
+            'preprocess_params': self.preprocess_params['parameters'],
             'search_preprocess_directory': search_preprocess_directory,
         }
         pattern = re.compile(r'{{(.*?)}}', flags=re.I | re.M)
