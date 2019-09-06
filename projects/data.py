@@ -1,10 +1,9 @@
 # Copyright 2019 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
-from typing import Any, Callable, Dict, List, Optional, Iterable
+from typing import Any, Callable, Dict, List, Optional
 import re
 import importlib
 import pathlib
-import functools
 from projects.base import ProjectBase
 from projects.utils import mlflow_utils
 
