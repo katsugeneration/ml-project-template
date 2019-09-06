@@ -272,7 +272,7 @@ class TestProjectsData(object):
 
         project = create_data_prepare(
                         {'Test2': _test_global, 'Test1': test1},
-                        {'a': {'aa': ["{{ search_preprocess_directory('tests.test_projects_data._test_global', {'b': 2}).joinpath('aaa').open('r').read() }}"]}, 'b': 2})
+                        {'a': {'aa': ["{{ search_preprocess_directory('tests.test_projects_data._test_global', {'b': [{'bb': 'gggg'}]}).joinpath('aaa').open('r').read() }}"]}, 'b': [{'bb': "gggg"}]})
         run_result = luigi.build([project], worker_scheduler_factory=DummyFactory())
         ok_(run_result)
         ok_(project.output().exists())

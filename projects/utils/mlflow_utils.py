@@ -17,7 +17,9 @@ def convert_valid_log_param_value(
         value (str): valid parameter value string
     """
     value = str(param)
-    if len(value) >= mlflow.utils.validation.MAX_PARAM_VAL_LENGTH:
+    if len(value) >= mlflow.utils.validation.MAX_PARAM_VAL_LENGTH or \
+       isinstance(param, dict) or \
+       isinstance(param, list):
         m = hashlib.sha512()
         m.update(value.encode('utf-8'))
         value = m.hexdigest()
