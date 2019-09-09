@@ -153,6 +153,7 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
         class_csv (str): path to class color definition csv. each rows has `name`, `r`, `g` and `b` columns.
         crop_width (int): crop width. if value is 0, we do not crop.
         crop_height (int): crop width. if value is 0, we do not crop.
+        window_size (int): pre images and pot images scope size.
 
     """
 
@@ -165,6 +166,7 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             class_csv: str,
             crop_width: int = 0,
             crop_height: int = 0,
+            window_size: int = 0,
             **kwargs: Any) -> None:
         """Initilize params."""
         super(DirectoryImageSegmentationDataset, self).__init__(**kwargs)
@@ -184,10 +186,12 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             self.input_shape = image.shape
             break
 
+        self.input_shape = (self.input_shape[0], self.input_shape[1], self.input_shape[2] * (2 * window_size + 1))
         if crop_height != 0 and crop_width != 0:
             self.input_shape = (crop_width, crop_height, self.input_shape[2])
         self.crop_width = crop_width
         self.crop_height = crop_height
+        self.window_size = window_size
 
     def _random_crop(
             self,
@@ -332,15 +336,16 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
         label_paths = sorted(label_path.glob('*'))
         assert len(label_paths) == len(label_paths)
         sample_num = len(image_paths)
+        size = self.batch_size + 2 * self.window_size
 
         while True:
             indexes = np.arange(sample_num)
             np.random.shuffle(indexes)
-            itr_num = int(len(indexes) // (self.batch_size))
+            itr_num = int(len(indexes) // (size))
 
             for i in range(itr_num):
                 pool = multiprocessing.pool.ThreadPool()
-                batch_ids = indexes[i * self.batch_size:(i + 1) * self.batch_size]
+                batch_ids = indexes[i * size:(i + 1) * size]
                 results = []
                 X: List = []
                 y: List = []
@@ -358,7 +363,10 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
                 pool.close()
                 pool.join()
 
-                yield np.array(X), np.array(y)
+                X_new = [np.concatenate(X[j-self.window_size:j+self.window_size+1], axis=2)
+                         for j in range(self.window_size, len(y)-self.window_size)]
+                y_new = [y[j] for j in range(self.window_size, len(y)-self.window_size)]
+                yield np.array(X_new), np.array(y_new)
 
     def training_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
         """Return training dataset.
