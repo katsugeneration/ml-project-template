@@ -298,7 +298,11 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             if image is not None and label is not None:
                 X.append(image)
                 y.append(label)
-        return (np.array(X), np.array(y))
+
+        X_new = [np.concatenate(X[j-self.window_size:j+self.window_size+1], axis=2)
+                 for j in range(self.window_size, len(y)-self.window_size)]
+        y_new = [y[j] for j in range(self.window_size, len(y)-self.window_size)]
+        return np.array(X_new), np.array(y_new)
 
     def training_data(self) -> Tuple[np.array, np.array]:
         """Return training dataset.
