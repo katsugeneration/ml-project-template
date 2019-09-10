@@ -259,7 +259,7 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             label (mp.array): correspondence label object.
         """
         try:
-            image = np.array(Image.open(image_path))
+            image = np.array(Image.open(image_path)) / 255.0
             label = self._label_image_to_category(np.array(Image.open(label_path).convert('RGB')))
             image, label = self._random_crop(image, label)
             if is_train:
