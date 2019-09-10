@@ -178,4 +178,24 @@ class KerasImageClassifierBase(KerasModelBase):
 class KerasImageSegmentationBase(KerasImageClassifierBase):
     """Keras image segmentation model base."""
 
-    pass
+    def train(self) -> Dict[str, List[Any]]:
+        """Training model.
+
+        Return:
+            log (Dict[str, List[Any]]): training log.
+
+        """
+        callbacks: List = []
+        if self.lr_step_decay:
+            callbacks.append(tf.keras.callbacks.LearningRateScheduler(
+                    lambda e: self.lr if e < int(self.epochs / 2) else self.lr / 10.0 if e < int(self.epochs * 3 / 4) else self.lr / 100.0))
+
+        generator = self.dataset.training_data_generator()
+        (x_test, y_test) = self.dataset.eval_data()
+        history = self.model.fit_generator(
+                        generator,
+                        steps_per_epoch=self.dataset.steps_per_epoch,
+                        validation_data=(x_test, y_test),
+                        epochs=self.epochs,
+                        callbacks=callbacks)
+        return history.history

@@ -1,7 +1,7 @@
 # Copyright 2019 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
 
-from typing import Any, Union, Generator
+from typing import Any, Union, Generator, Tuple
 import tensorflow as tf
 import numpy as np
 from dataset.base import BinaryImageClassifierDataset, ImageSegmentationDatasetBase
@@ -63,3 +63,13 @@ class SegmentationDummyDataset(ImageSegmentationDatasetBase):
         y_test = tf.keras.utils.to_categorical(self.y_test, num_classes=self.category_nums)
         self.eval_steps_per_epoch = len(self.x_test) // self.batch_size
         return self.eval_data_gen.flow(self.x_test, y=y_test, batch_size=self.batch_size)
+
+    def eval_data(self) -> Tuple[np.array, np.array]:
+        """Return evaluation dataset.
+
+        Return:
+            dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
+
+        """
+        y_test = tf.keras.utils.to_categorical(self.y_test, num_classes=self.category_nums)
+        return self.x_test, y_test
