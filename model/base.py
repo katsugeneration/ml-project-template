@@ -1,7 +1,11 @@
+<<<<<<< HEAD
 # Copyright 2019 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
 from typing import Tuple, List, Dict, Any, Union, Optional
 import functools
+=======
+from typing import Tuple, List, Dict, Any, Union
+>>>>>>> parent of 992ff43... Add class_weight option for keras model fit
 import pathlib
 import tensorflow as tf
 from sklearn.metrics import precision_score
@@ -77,7 +81,6 @@ class KerasImageClassifierBase(KerasModelBase):
         clipnorm (float): clipnorm value
         lr_step_decay (bool): whether to use step learning rate decay.
         decay (float): learning rate decay parameter.
-        class_weight (dict): label to loss weight dictionary.
 
     """
 
@@ -91,7 +94,6 @@ class KerasImageClassifierBase(KerasModelBase):
             clipnorm: float = 1.0,
             lr_step_decay: bool = True,
             decay: float = 0.0,
-            class_weight: Optional[dict] = None,
             **kwargs: Any) -> None:
         """Intialize parameter and build model."""
         super(KerasImageClassifierBase, self).__init__(**kwargs)
@@ -102,7 +104,6 @@ class KerasImageClassifierBase(KerasModelBase):
         self.momentum = momentum
         self.clipnorm = clipnorm
         self.lr_step_decay = lr_step_decay
-        self.class_weight = class_weight
 
     def setup(self) -> None:
         """Set optimizer to model."""
@@ -139,7 +140,6 @@ class KerasImageClassifierBase(KerasModelBase):
                         validation_data=eval_generator,
                         validation_steps=self.dataset.eval_steps_per_epoch,
                         epochs=self.epochs,
-                        class_weight=self.class_weight,
                         callbacks=callbacks)
         return history.history
 
@@ -204,7 +204,6 @@ class KerasImageSegmentationBase(KerasImageClassifierBase):
                         steps_per_epoch=self.dataset.steps_per_epoch,
                         validation_data=(x_test, y_test),
                         epochs=self.epochs,
-                        class_weight=self.class_weight,
                         max_queue_size=100,
                         callbacks=callbacks)
         return history.history
