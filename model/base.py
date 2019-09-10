@@ -1,9 +1,11 @@
 # Copyright 2019 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
 from typing import Tuple, List, Dict, Any, Union, Optional
+import functools
 import pathlib
 import tensorflow as tf
-from dataset.base import ImageClassifierDatasetBase, ImageSegmentationDatasetBase
+from sklearn.metrics import precision_score
+from dataset.base import ImageClassifierDatasetBase
 
 
 class ModelBase(object):
@@ -168,6 +170,21 @@ class KerasImageClassifierBase(KerasModelBase):
 class KerasImageSegmentationBase(KerasImageClassifierBase):
     """Keras image segmentation model base."""
 
+    def setup(self) -> None:
+        """Set optimizer to model."""
+        optimizer = tf.keras.optimizers.get({
+            'class_name': self.optimizer_name,
+            'config': {
+                'learning_rate': self.lr,
+                'momentum': self.momentum,
+                'clipnorm': self.clipnorm
+                }})
+
+        self.model.compile(
+            optimizer=optimizer,
+            loss='categorical_crossentropy',
+            metrics=(['accuracy', tf.keras.metrics.MeanIoU(num_classes=self.dataset.category_nums)]))
+
     def train(self) -> Dict[str, List[Any]]:
         """Training model.
 
@@ -188,5 +205,6 @@ class KerasImageSegmentationBase(KerasImageClassifierBase):
                         validation_data=(x_test, y_test),
                         epochs=self.epochs,
                         class_weight=self.class_weight,
+                        max_queue_size=100,
                         callbacks=callbacks)
         return history.history
