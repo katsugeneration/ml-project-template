@@ -1,6 +1,6 @@
 # Copyright 2019 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
-from typing import Tuple, Any, Generator, Union, List
+from typing import Tuple, Any, Generator, Union, List, Optional
 import pathlib
 import multiprocessing
 import pandas as pd
@@ -266,7 +266,8 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
     def _data(
             self,
             image_path: pathlib.Path,
-            label_path: pathlib.Path) -> Tuple[np.array, np.array]:
+            label_path: pathlib.Path,
+            max_length: Optional[int] = None) -> Tuple[np.array, np.array]:
         """Return training dataset.
 
         Args:
@@ -279,6 +280,9 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
         """
         image_paths = sorted(image_path.glob('*'))
         label_paths = sorted(label_path.glob('*'))
+        if max_length:
+            image_paths = image_paths[:max_length]
+            label_paths = label_paths[:max_length]
         assert len(label_paths) == len(label_paths)
 
         pool = multiprocessing.pool.ThreadPool()
@@ -319,7 +323,7 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             dataset (Tuple[np.array, np.array]): evaluation dataset pair
 
         """
-        return self._data(self.test_image_directory, self.test_label_directory)
+        return self._data(self.test_image_directory, self.test_label_directory, max_length=100)
 
     def _data_generator(
             self,
