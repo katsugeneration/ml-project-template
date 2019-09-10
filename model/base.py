@@ -1,14 +1,8 @@
-<<<<<<< HEAD
 # Copyright 2019 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
 from typing import Tuple, List, Dict, Any, Union, Optional
-import functools
-=======
-from typing import Tuple, List, Dict, Any, Union
->>>>>>> parent of 992ff43... Add class_weight option for keras model fit
 import pathlib
 import tensorflow as tf
-from sklearn.metrics import precision_score
 from dataset.base import ImageClassifierDatasetBase
 
 
@@ -81,6 +75,7 @@ class KerasImageClassifierBase(KerasModelBase):
         clipnorm (float): clipnorm value
         lr_step_decay (bool): whether to use step learning rate decay.
         decay (float): learning rate decay parameter.
+        weighted_loss (List[float]): loss weight.
 
     """
 
@@ -94,6 +89,7 @@ class KerasImageClassifierBase(KerasModelBase):
             clipnorm: float = 1.0,
             lr_step_decay: bool = True,
             decay: float = 0.0,
+            weighted_loss: Optional[List[float]] = None,
             **kwargs: Any) -> None:
         """Intialize parameter and build model."""
         super(KerasImageClassifierBase, self).__init__(**kwargs)
@@ -104,6 +100,7 @@ class KerasImageClassifierBase(KerasModelBase):
         self.momentum = momentum
         self.clipnorm = clipnorm
         self.lr_step_decay = lr_step_decay
+        self.weighted_loss = weighted_loss
 
     def setup(self) -> None:
         """Set optimizer to model."""
@@ -180,9 +177,23 @@ class KerasImageSegmentationBase(KerasImageClassifierBase):
                 'clipnorm': self.clipnorm
                 }})
 
+        def weighted_logits(
+                y_true: List,
+                y_pred: List) -> float:
+            """Return weighted loss."""
+            return tf.nn.weighted_cross_entropy_with_logits(
+                        logits=y_pred,
+                        labels=y_true,
+                        pos_weight=tf.constant(self.weighted_loss))
+
+        if self.weighted_loss is None:
+            loss = tf.keras.losses.categorical_crossentropy
+        else:
+            loss = weighted_logits
+
         self.model.compile(
             optimizer=optimizer,
-            loss='categorical_crossentropy',
+            loss=loss,
             metrics=(['accuracy', tf.keras.metrics.MeanIoU(num_classes=self.dataset.category_nums)]))
 
     def train(self) -> Dict[str, List[Any]]:
