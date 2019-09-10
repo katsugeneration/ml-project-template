@@ -25,6 +25,7 @@ class TestDirectoryImageSegmentationDataset(object):
         eq_(x.shape[1:3], (720, 960))
         eq_(x[0].shape[:2], y[0].shape[:2])
         eq_(len(y[0].shape), 3)
+        ok_((x <= 1.0).all())
 
     def test_get_train_data_generator(self):
         dataset = DirectoryImageSegmentationDataset(
@@ -73,6 +74,7 @@ class TestDirectoryImageSegmentationDataset(object):
         eq_(x[0].shape[:2], y[0].shape[:2])
         eq_(len(y[0].shape), 3)
         eq_(y[0].shape[2], dataset.category_nums)
+        ok_((x <= 1.0).all())
 
     def test_get_train_data_generator_with_window(self):
         dataset = DirectoryImageSegmentationDataset(
