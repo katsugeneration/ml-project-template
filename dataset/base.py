@@ -347,7 +347,7 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             for im, la, in zip(image_directories, label_directories):
                 image_paths = sorted(im.glob('*.*'))
                 label_paths = sorted(la.glob('*.*'))
-                if len(label_paths) != len(label_paths):
+                if len(label_paths) != len(image_paths):
                     continue
                 sample_num = len(image_paths)
                 indexes = np.arange(sample_num)
