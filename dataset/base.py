@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 from typing import Tuple, Any, Generator, Union, List, Optional
 import pathlib
+import random
 import multiprocessing
 import pandas as pd
 import numpy as np
@@ -281,8 +282,8 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
         image_paths = sorted(image_path.glob('*'))
         label_paths = sorted(label_path.glob('*'))
         if max_length:
-            image_paths = image_paths[:max_length]
-            label_paths = label_paths[:max_length]
+            image_paths = random.choices(image_paths, k=max_length)
+            label_paths = random.choices(label_paths, k=max_length)
         assert len(label_paths) == len(label_paths)
 
         pool = multiprocessing.pool.ThreadPool()
