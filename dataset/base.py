@@ -236,11 +236,11 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             label (np.array): label array. shape is H x W x category_nums
 
         """
-        label = np.ones(image.shape[:2]) * self.category_nums
+        label = np.zeros((image.shape[0], image.shape[1], self.category_nums))
         for i, r in self.class_dict.iterrows():
             equality = np.equal(image, [r['r'], r['g'], r['b']]).all(axis=-1)
-            label[equality] = i
-        return tf.keras.utils.to_categorical(label, num_classes=self.category_nums)
+            label[:, :, i][equality] = 1
+        return label
 
     def _load_data(
             self,
@@ -370,9 +370,12 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
                 pool.close()
                 pool.join()
 
-                X_new = [np.concatenate(X[j-self.window_size:j+self.window_size+1], axis=2)
-                         for j in range(self.window_size, len(y)-self.window_size)]
-                y_new = [y[j] for j in range(self.window_size, len(y)-self.window_size)]
+                if self.window_size > 0:
+                    X_new = [np.concatenate(X[j-self.window_size:j+self.window_size+1], axis=2)
+                             for j in range(self.window_size, len(y)-self.window_size)]
+                    y_new = [y[j] for j in range(self.window_size, len(y)-self.window_size)]
+                else:
+                    X_new, y_new = X, y
                 X_new, y_new = zip(*[self._random_crop(image, label) for image, label in zip(X_new, y_new)])
                 yield np.array(X_new), np.array(y_new)
 
