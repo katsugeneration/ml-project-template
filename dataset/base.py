@@ -178,7 +178,7 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
         self.class_dict: pd.DataFrame = pd.read_csv(class_csv)
         self.category_nums = len(self.class_dict)
 
-        for path in self.train_image_directory.glob('*'):
+        for path in self.train_image_directory.glob('**/*.*'):
             try:
                 image = np.array(Image.open(path))
             except OSError:
@@ -279,12 +279,12 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             dataset (Tuple[np.array, np.array]): training dataset pair
 
         """
-        image_paths = sorted(image_path.glob('*'))
-        label_paths = sorted(label_path.glob('*'))
+        image_paths = sorted(image_path.glob('**/*.*'))
+        label_paths = sorted(label_path.glob('**/*.*'))
         if max_length:
             image_paths = random.choices(image_paths, k=max_length)
             label_paths = random.choices(label_paths, k=max_length)
-        assert len(label_paths) == len(label_paths)
+        assert len(label_paths) == len(image_paths)
 
         pool = multiprocessing.pool.ThreadPool()
         results = []
@@ -340,44 +340,47 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
 
         """
-        image_paths = sorted(image_path.glob('*'))
-        label_paths = sorted(label_path.glob('*'))
-        assert len(label_paths) == len(label_paths)
-        sample_num = len(image_paths)
+        image_directories = sorted([p for p in image_path.glob('*') if p.is_dir()])
+        label_directories = sorted([p for p in label_path.glob('*') if p.is_dir()])
 
         while True:
-            indexes = np.arange(sample_num)
-            np.random.shuffle(indexes)
-            itr_num = int((len(indexes) - 2 * self.window_size) // (self.batch_size))
+            for im, la, in zip(image_directories, label_directories):
+                image_paths = sorted(im.glob('*.*'))
+                label_paths = sorted(la.glob('*.*'))
+                if len(label_paths) != len(label_paths):
+                    continue
+                sample_num = len(image_paths)
+                indexes = np.arange(sample_num)
+                itr_num = int((sample_num - 2 * self.window_size) // (self.batch_size))
 
-            for i in range(itr_num):
-                pool = multiprocessing.pool.ThreadPool()
-                batch_ids = indexes[self.window_size + i * self.batch_size:2 * self.window_size + (i + 1) * self.batch_size]
-                results = []
-                X: List = []
-                y: List = []
+                for i in range(itr_num):
+                    pool = multiprocessing.pool.ThreadPool()
+                    batch_ids = indexes[self.window_size + i * self.batch_size:2 * self.window_size + (i + 1) * self.batch_size]
+                    results = []
+                    X: List = []
+                    y: List = []
 
-                for j in batch_ids:
-                    results.append(
-                        pool.apply_async(self._load_data, (image_paths[j], label_paths[j])))
+                    for j in batch_ids:
+                        results.append(
+                            pool.apply_async(self._load_data, (image_paths[j], label_paths[j])))
 
-                for res in results:
-                    image, label = res.get()
-                    if image is not None and label is not None:
-                        X.append(image)
-                        y.append(label)
+                    for res in results:
+                        image, label = res.get()
+                        if image is not None and label is not None:
+                            X.append(image)
+                            y.append(label)
 
-                pool.close()
-                pool.join()
+                    pool.close()
+                    pool.join()
 
-                if self.window_size > 0:
-                    X_new = [np.concatenate(X[j-self.window_size:j+self.window_size+1], axis=2)
-                             for j in range(self.window_size, len(y)-self.window_size)]
-                    y_new = [y[j] for j in range(self.window_size, len(y)-self.window_size)]
-                else:
-                    X_new, y_new = X, y
-                X_new, y_new = zip(*[self._random_crop(image, label) for image, label in zip(X_new, y_new)])
-                yield np.array(X_new), np.array(y_new)
+                    if self.window_size > 0:
+                        X_new = [np.concatenate(X[j-self.window_size:j+self.window_size+1], axis=2)
+                                 for j in range(self.window_size, len(y)-self.window_size)]
+                        y_new = [y[j] for j in range(self.window_size, len(y)-self.window_size)]
+                    else:
+                        X_new, y_new = X, y
+                    X_new, y_new = zip(*[self._random_crop(image, label) for image, label in zip(X_new, y_new)])
+                    yield np.array(X_new), np.array(y_new)
 
     def training_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
         """Return training dataset.
@@ -386,7 +389,7 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
 
         """
-        self.steps_per_epoch = len(list(self.train_image_directory.glob('*'))) // self.batch_size
+        self.steps_per_epoch = len(list(self.train_image_directory.glob('**/*.*'))) // self.batch_size
         return self._data_generator(self.train_image_directory, self.train_label_directory)
 
     def eval_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
