@@ -344,16 +344,15 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
         label_paths = sorted(label_path.glob('*'))
         assert len(label_paths) == len(label_paths)
         sample_num = len(image_paths)
-        size = self.batch_size + 2 * self.window_size
 
         while True:
             indexes = np.arange(sample_num)
             np.random.shuffle(indexes)
-            itr_num = int(len(indexes) // (size))
+            itr_num = int((len(indexes) - 2 * self.window_size) // (self.batch_size))
 
             for i in range(itr_num):
                 pool = multiprocessing.pool.ThreadPool()
-                batch_ids = indexes[i * size:(i + 1) * size]
+                batch_ids = indexes[self.window_size + i * self.batch_size:2 * self.window_size + (i + 1) * self.batch_size]
                 results = []
                 X: List = []
                 y: List = []
