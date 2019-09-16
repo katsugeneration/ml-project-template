@@ -354,24 +354,15 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
                 itr_num = int((sample_num - 2 * self.window_size) // (self.batch_size))
 
                 for i in range(itr_num):
-                    pool = multiprocessing.pool.ThreadPool()
                     batch_ids = indexes[self.window_size + i * self.batch_size:2 * self.window_size + (i + 1) * self.batch_size]
-                    results = []
                     X: List = []
                     y: List = []
 
                     for j in batch_ids:
-                        results.append(
-                            pool.apply_async(self._load_data, (image_paths[j], label_paths[j])))
-
-                    for res in results:
-                        image, label = res.get()
+                        image, label = self._load_data(image_paths[j], label_paths[j])
                         if image is not None and label is not None:
                             X.append(image)
                             y.append(label)
-
-                    pool.close()
-                    pool.join()
 
                     if self.window_size > 0:
                         X_new = [np.concatenate(X[j-self.window_size:j+self.window_size+1], axis=2)
