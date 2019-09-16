@@ -155,6 +155,7 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
         crop_width (int): crop width. if value is 0, we do not crop.
         crop_height (int): crop width. if value is 0, we do not crop.
         window_size (int): pre images and pot images scope size.
+        sample_num_per_image (int): number of random sample per image.
 
     """
 
@@ -168,6 +169,7 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             crop_width: int = 0,
             crop_height: int = 0,
             window_size: int = 0,
+            sample_num_per_image: int = 1,
             **kwargs: Any) -> None:
         """Initilize params."""
         super(DirectoryImageSegmentationDataset, self).__init__(**kwargs)
@@ -193,6 +195,7 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
         self.crop_width = crop_width
         self.crop_height = crop_height
         self.window_size = window_size
+        self.sample_num_per_image = sample_num_per_image
 
     def _random_crop(
             self,
@@ -349,8 +352,8 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
                 label_paths = sorted(la.glob('*.*'))
                 if len(label_paths) != len(image_paths):
                     continue
-                sample_num = len(image_paths)
-                indexes = np.arange(sample_num)
+                sample_num = len(image_paths) // self.sample_num_per_image
+                indexes = np.random.choice(len(image_paths), sample_num)
                 itr_num = int((sample_num - 2 * self.window_size) // (self.batch_size))
 
                 for i in range(itr_num):
@@ -380,7 +383,7 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
 
         """
-        self.steps_per_epoch = len(list(self.train_image_directory.glob('**/*.*'))) // self.batch_size
+        self.steps_per_epoch = len(list(self.train_image_directory.glob('**/*.*'))) // self.batch_size // self.sample_num_per_image
         return self._data_generator(self.train_image_directory, self.train_label_directory)
 
     def eval_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
@@ -390,5 +393,5 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
 
         """
-        self.eval_steps_per_epoch = len(list(self.test_image_directory.glob('*'))) // self.batch_size
+        self.eval_steps_per_epoch = len(list(self.test_image_directory.glob('*'))) // self.batch_size // self.sample_num_per_image
         return self._data_generator(self.test_image_directory, self.test_label_directory)

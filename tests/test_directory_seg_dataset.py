@@ -107,3 +107,16 @@ class TestDirectoryImageSegmentationDataset(object):
         eq_(x.shape[3], 9)
         eq_(x[0].shape[:2], y[0].shape[:2])
         eq_(len(y[0].shape), 3)
+
+    def test_get_train_data_with_num_sample(self):
+        dataset = DirectoryImageSegmentationDataset(
+                batch_size=8,
+                train_image_directory='tests/CamVid/train',
+                train_label_directory='tests/CamVid/train_labels',
+                test_image_directory='tests/CamVid/val',
+                test_label_directory='tests/CamVid/val_labels',
+                class_csv='tests/CamVid/class_dict.csv',
+                sample_num_per_image=2)
+        x, y = dataset.training_data()
+        eq_(x.shape[1:3], (720, 960))
+        eq_(x[0].shape[:2], y[0].shape[:2])
