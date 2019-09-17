@@ -40,6 +40,7 @@ class ProjectBase(luigi.Task):
     def run(self) -> None:
         """Luigi task run method implementation."""
         with mlflow.start_run(experiment_id=self.experiment_id, run_name=self.run_name) as active_run:
+            mlflow.log_param('name', self.name)
             for k, v in self.parameters.items():
                 mlflow.log_param(k, mlflow_utils.convert_valid_log_param_value(v))
             self._run_object = active_run

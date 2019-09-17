@@ -134,7 +134,7 @@ def create_data_prepare(
                                     'update': update,
                                     'before_project': before_project,
                                     'run_name': _get_runname(run_func)})
-        new_project = new_project_class()
+        new_project = new_project_class(name=parameters['name'] if 'name' in parameters else 'default')
         before_project = new_project
 
     return before_project
@@ -157,4 +157,4 @@ def search_preprocess_directory(
     return mlflow_utils.run_to_run_directory(
                 mlflow_utils.search_run_object(
                     _get_runname(run_func),
-                    _get_valid_parameters(run_func, parameters)))
+                    dict(_get_valid_parameters(run_func, parameters), **{'name': parameters['name']})))
