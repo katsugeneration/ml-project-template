@@ -22,10 +22,11 @@ class ModelBase(object):
         """
         pass
 
-    def inference(self) -> Tuple[List[Any], List[Any]]:
+    def inference(self) -> Tuple[List[Any], List[Any], List[Any]]:
         """Inference model.
 
         Return:
+            target (List[Any]): inference target.
             inference (List[Any]): inference result.
             gt (List[Any]): ground truth data.
 
@@ -140,17 +141,18 @@ class KerasImageClassifierBase(KerasModelBase):
                         callbacks=callbacks)
         return history.history
 
-    def inference(self) -> Tuple[List[List[float]], List[Any]]:
+    def inference(self) -> Tuple[List[Any], List[List[Any]], List[Any]]:
         """Inference model.
 
         Return:
+            target (List[Any]): inference target.
             predicts (List[List[float]]): inference result. shape is data size x category_nums.
             gt (List[Any]): ground truth data.
 
         """
         (x_test, y_test) = self.dataset.eval_data()
         predicts = self.model.predict(x_test)
-        return predicts, y_test
+        return x_test, predicts, y_test
 
     def save(
             self,

@@ -58,7 +58,7 @@ class ImageRecognitionTrainer(RunnerBase):
         model.save(log_path.joinpath('model.h5'))
 
         # save results
-        y_pred, y_test = model.inference()
+        x_test, y_pred, y_test = model.inference()
         y_test = np.argmax(y_test, axis=1)
         y_pred = np.argmax(y_pred, axis=1)
 

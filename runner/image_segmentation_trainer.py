@@ -3,6 +3,7 @@
 from typing import Dict, List, Any
 import pathlib
 import numpy as np
+from PIL import Image
 from runner.base import RunnerBase
 from runner import utils
 from dataset.base import DatasetBase, DirectoryImageSegmentationDataset
@@ -44,7 +45,16 @@ class ImageSegmentationTrainer(RunnerBase):
         model.save(log_path.joinpath('model.h5'))
 
         # save results
-        y_pred, y_test = model.inference()
+        x_test, y_pred, y_test = model.inference()
+        images_path = log_path.joinpath('images')
+        images_path.mkdir(exist_ok=True)
+        for i, (x, pre, y) in enumerate(zip(x_test, y_pred, y_test)):
+            pre = (1 - np.argmax(pre, axis=-1)) * 255
+            y = (1 - np.argmax(y, axis=-1)) * 255
+            Image.fromarray((x[:, :, :3] * 255).astype(np.uint8)).save(images_path.joinpath('%05d_image.jpg' % i))
+            Image.fromarray(pre.astype(np.uint8)).save(images_path.joinpath('%05d_predicts.jpg' % i))
+            Image.fromarray(y.astype(np.uint8)).save(images_path.joinpath('%05d_gt.jpg' % i))
+
         y_test = np.argmax(y_test, axis=-1).flatten()
         y_pred = np.argmax(y_pred, axis=-1).flatten()
         utils.save_confusion_matrix(
