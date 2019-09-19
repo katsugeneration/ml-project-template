@@ -167,7 +167,20 @@ class KerasImageClassifierBase(KerasModelBase):
 
 
 class KerasImageSegmentationBase(KerasImageClassifierBase):
-    """Keras image segmentation model base."""
+    """Keras image segmentation model base.
+
+    Args:
+        generarized_dice_loss (bool): whether or not to use generarized dice loss.
+
+    """
+
+    def __init__(
+            self,
+            generarized_dice_loss: bool = False,
+            **kwargs: Any) -> None:
+        """Intialize parameter and build model."""
+        super(KerasImageSegmentationBase, self).__init__(**kwargs)
+        self.generarized_dice_loss = generarized_dice_loss
 
     def setup(self) -> None:
         """Set optimizer to model."""
@@ -188,7 +201,20 @@ class KerasImageSegmentationBase(KerasImageClassifierBase):
                         labels=y_true,
                         pos_weight=tf.constant(self.weighted_loss))
 
-        if self.weighted_loss is None:
+        def generarized_dice_loss(
+                y_true: tf.Tensor,
+                y_pred: tf.Tensor) -> float:
+            """Return generarized dice loss."""
+            epsilon = tf.keras.backend.epsilon()
+            w = 1 / (tf.square(tf.reduce_sum(y_true, axis=(1, 2))) + epsilon)
+            intersection = tf.math.reduce_sum(y_true * y_pred, axis=(1, 2))
+            union = tf.math.reduce_sum(y_true + y_pred, axis=(1, 2))
+            losses = 1 - 2 * (tf.math.reduce_sum(w * intersection, axis=-1) / (tf.math.reduce_sum(w * union, axis=-1) + epsilon))
+            return tf.reduce_mean(losses)
+
+        if self.generarized_dice_loss:
+            loss = generarized_dice_loss
+        elif self.weighted_loss is None:
             loss = tf.keras.losses.categorical_crossentropy
         else:
             loss = weighted_logits

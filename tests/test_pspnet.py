@@ -5,7 +5,7 @@ from model.pspnet import PSPNet
 from tests.utils.dummy_dataset import SegmentationDummyDataset
 
 
-class TestResnet(object):
+class TestPspnet(object):
     def test_init(self):
         dataset = SegmentationDummyDataset()
         PSPNet(
@@ -18,6 +18,18 @@ class TestResnet(object):
             epochs=1,
             dataset=dataset,
             frontend_name='resnet101')
+        history = pspnet.train()
+
+        ok_('acc' in history)
+        ok_('loss' in history)
+
+    def test_train_gdl(self):
+        dataset = SegmentationDummyDataset(batch_size=32)
+        pspnet = PSPNet(
+            epochs=1,
+            dataset=dataset,
+            frontend_name='resnet101',
+            generarized_dice_loss=True)
         history = pspnet.train()
 
         ok_('acc' in history)
