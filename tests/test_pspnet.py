@@ -29,7 +29,7 @@ class TestPspnet(object):
             epochs=1,
             dataset=dataset,
             frontend_name='resnet101',
-            generarized_dice_loss=True)
+            generarized_dice_loss={'alpha': 0.01})
         history = pspnet.train()
 
         ok_('acc' in history)

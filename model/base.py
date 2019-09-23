@@ -3,6 +3,7 @@
 from typing import Tuple, List, Dict, Any, Union, Optional
 import pathlib
 import tensorflow as tf
+import scipy.ndimage.morphology as morphology
 from dataset.base import ImageClassifierDatasetBase
 
 
@@ -170,13 +171,13 @@ class KerasImageSegmentationBase(KerasImageClassifierBase):
     """Keras image segmentation model base.
 
     Args:
-        generarized_dice_loss (bool): whether or not to use generarized dice loss.
+        generarized_dice_loss (Dict): parameters for generarized dice loss. must contains `alpha`.
 
     """
 
     def __init__(
             self,
-            generarized_dice_loss: bool = False,
+            generarized_dice_loss: Dict = None,
             **kwargs: Any) -> None:
         """Intialize parameter and build model."""
         super(KerasImageSegmentationBase, self).__init__(**kwargs)
@@ -204,15 +205,34 @@ class KerasImageSegmentationBase(KerasImageClassifierBase):
         def generarized_dice_loss(
                 y_true: tf.Tensor,
                 y_pred: tf.Tensor) -> float:
-            """Return generarized dice loss."""
+            """Return generarized dice loss.
+
+            Reference:
+                - Generarized Dice Loss: https://arxiv.org/abs/1707.03237
+                - Boundary Loss: https://openreview.net/pdf?id=S1gTA5VggE
+
+            """
             epsilon = tf.keras.backend.epsilon()
             w = 1 / (tf.square(tf.reduce_sum(y_true, axis=(1, 2))) + epsilon)
             intersection = tf.math.reduce_sum(y_true * y_pred, axis=(1, 2))
             union = tf.math.reduce_sum(y_true + y_pred, axis=(1, 2))
-            losses = 1 - 2 * (tf.math.reduce_sum(w * intersection, axis=-1) / (tf.math.reduce_sum(w * union, axis=-1) + epsilon))
-            return tf.reduce_mean(losses)
+            gd_losses = 1 - 2 * (tf.math.reduce_sum(w * intersection, axis=-1) / (tf.math.reduce_sum(w * union, axis=-1) + epsilon))
 
-        if self.generarized_dice_loss:
+            distance_negative = tf.cast(
+                    tf.py_function(morphology.distance_transform_edt, [y_true[:, :, :, 0]], tf.double),
+                    tf.keras.backend.floatx())
+            distance_positive = tf.cast(
+                    tf.py_function(morphology.distance_transform_edt, [y_true[:, :, :, 1]], tf.double),
+                    tf.keras.backend.floatx())
+            distance = distance_negative * y_true[:, :, :, 0]  # - (distance_positive - 1) * y_true[:, :, :, 1]
+            # boundary_losses = distance * y_pred[:, :, :, 1] + distance_positive * y_true[:, :, :, 1] * y_pred[:, :, :, 0]
+            boundary_losses = (
+                w[:, 0] * tf.math.reduce_sum(distance_negative * y_true[:, :, :, 0] * y_pred[:, :, :, 1], axis=(1, 2)) +
+                w[:, 1] * tf.math.reduce_sum(distance_positive * y_true[:, :, :, 1] * y_pred[:, :, :, 0], axis=(1, 2)))
+            # boundary_losses = distance * y_pred[:, :, :, 1]
+            return tf.reduce_mean(gd_losses) + self.generarized_dice_loss['alpha'] * tf.reduce_mean(boundary_losses)
+
+        if self.generarized_dice_loss is not None:
             loss = generarized_dice_loss
         elif self.weighted_loss is None:
             loss = tf.keras.losses.categorical_crossentropy
