@@ -68,3 +68,20 @@ def run_to_run_directory(
     return pathlib.Path(
                 mlflow.tracking.artifact_utils.get_artifact_uri(
                     run.info.run_id).split('://')[1])
+
+
+def search_run_directory(
+        run_name: str,
+        parameters: Dict) -> mlflow.entities.Run:
+    """Return specific task artifact directory path.
+
+    Args:
+        run_name (str): mlflow task run name.
+        parameters (Dict): mlflow task parameters.
+
+    Return:
+        artifact_path (pathlib.Path): task artifact directory path.
+
+    """
+    return run_to_run_directory(
+                search_run_object(run_name, parameters))

@@ -7,6 +7,7 @@ import luigi
 import mlflow
 import yaml
 from projects.base import ProjectBase
+from projects.utils.mlflow_utils import search_run_directory
 from projects.data import create_data_prepare, search_preprocess_directory
 
 
@@ -69,8 +70,12 @@ class RunOnceProject(ProjectBase):
             'before_artifact_directory': before_artifact_directory,
             'preprocess_params': self.preprocess_params['parameters'],
             'search_preprocess_directory': search_preprocess_directory,
+            'search_run_directory': search_run_directory
         }
         pattern = re.compile(r'{{(.*?)}}', flags=re.I | re.M)
+        self.model_params = {k: eval(pattern.sub(r'\1', v).strip(), variables)
+                             if isinstance(v, str) and pattern.match(v) else v
+                             for k, v in self.model_params.items()}
         self.dataset_params = {k: eval(pattern.sub(r'\1', v).strip(), variables)
                                if isinstance(v, str) and pattern.match(v) else v
                                for k, v in self.dataset_params.items()}

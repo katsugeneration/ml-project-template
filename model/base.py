@@ -45,6 +45,17 @@ class ModelBase(object):
         """
         pass
 
+    def load(
+            self,
+            path: Union[str, pathlib.Path]) -> None:
+        """Load pre-trained model.
+
+        Args:
+            path (str or pathlib.Path): path to model file directory.
+
+        """
+        pass
+
 
 class KerasModelBase(ModelBase):
     """Keras model class."""
@@ -78,6 +89,7 @@ class KerasImageClassifierBase(KerasModelBase):
         lr_step_decay (bool): whether to use step learning rate decay.
         decay (float): learning rate decay parameter.
         weighted_loss (List[float]): loss weight.
+        restore_path (Union[str, pathlib.Path]): path to restore model file
 
     """
 
@@ -92,6 +104,7 @@ class KerasImageClassifierBase(KerasModelBase):
             lr_step_decay: bool = True,
             decay: float = 0.0,
             weighted_loss: Optional[List[float]] = None,
+            restore_path: Union[str, pathlib.Path] = None,
             **kwargs: Any) -> None:
         """Intialize parameter and build model."""
         super(KerasImageClassifierBase, self).__init__(**kwargs)
@@ -103,6 +116,7 @@ class KerasImageClassifierBase(KerasModelBase):
         self.clipnorm = clipnorm
         self.lr_step_decay = lr_step_decay
         self.weighted_loss = weighted_loss
+        self.restore_path = restore_path
 
     def setup(self) -> None:
         """Set optimizer to model."""
@@ -113,6 +127,9 @@ class KerasImageClassifierBase(KerasModelBase):
                 'momentum': self.momentum,
                 'clipnorm': self.clipnorm
                 }})
+
+        if self.restore_path is not None:
+            self.load(self.restore_path)
 
         self.model.compile(
             optimizer=optimizer,
@@ -166,6 +183,17 @@ class KerasImageClassifierBase(KerasModelBase):
         """
         self.model.save_weights(str(path))
 
+    def load(
+            self,
+            path: Union[str, pathlib.Path]) -> None:
+        """Load pre-trained model.
+
+        Args:
+            path (str or pathlib.Path): path to model file directory.
+
+        """
+        self.model.load_weights(str(path))
+
 
 class KerasImageSegmentationBase(KerasImageClassifierBase):
     """Keras image segmentation model base.
@@ -192,6 +220,9 @@ class KerasImageSegmentationBase(KerasImageClassifierBase):
                 'momentum': self.momentum,
                 'clipnorm': self.clipnorm
                 }})
+
+        if self.restore_path is not None:
+            self.load(self.restore_path)
 
         def weighted_logits(
                 y_true: List,
@@ -224,12 +255,9 @@ class KerasImageSegmentationBase(KerasImageClassifierBase):
             distance_positive = tf.cast(
                     tf.py_function(morphology.distance_transform_edt, [y_true[:, :, :, 1]], tf.double),
                     tf.keras.backend.floatx())
-            distance = distance_negative * y_true[:, :, :, 0]  # - (distance_positive - 1) * y_true[:, :, :, 1]
-            # boundary_losses = distance * y_pred[:, :, :, 1] + distance_positive * y_true[:, :, :, 1] * y_pred[:, :, :, 0]
             boundary_losses = (
                 w[:, 0] * tf.math.reduce_sum(distance_negative * y_true[:, :, :, 0] * y_pred[:, :, :, 1], axis=(1, 2)) +
                 w[:, 1] * tf.math.reduce_sum(distance_positive * y_true[:, :, :, 1] * y_pred[:, :, :, 0], axis=(1, 2)))
-            # boundary_losses = distance * y_pred[:, :, :, 1]
             return tf.reduce_mean(gd_losses) + self.generarized_dice_loss['alpha'] * tf.reduce_mean(boundary_losses)
 
         if self.generarized_dice_loss is not None:
