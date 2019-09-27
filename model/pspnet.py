@@ -69,12 +69,14 @@ class PSPNet(KerasImageSegmentationBase):
     Args:
         dataset (ImageSegmentationDatasetBase): dataset object.
         frontend_naem (str): base classifier name.
+        use_l2softmax (bool): whether or not to use l2 softmax loss.
 
     """
 
     def __init__(
             self,
             frontend_name: str,
+            use_l2softmax: bool = False,
             **kwargs: Any) -> None:
         """Intialize parameter and build model."""
         super(PSPNet, self).__init__(**kwargs)
@@ -101,9 +103,11 @@ class PSPNet(KerasImageSegmentationBase):
         x = ConvBlock(x, 128)
         x = ConvUpscaleBlock(x, 64, kernel_size=[3, 3], scale=2)
         x = ConvBlock(x, 64)
+        x = tf.keras.layers.Conv2D(self.dataset.category_nums, [1, 1])(x)
 
         # calc likelihood
-        x = tf.keras.layers.Conv2D(self.dataset.category_nums, [1, 1])(x)
+        if use_l2softmax:
+            x = x / tf.norm(x, ord='euclidean', axis=-1, keepdims=True)
         outputs = tf.keras.layers.Activation(tf.nn.softmax)(x)
 
         self.model = tf.keras.Model(inputs=inputs, outputs=outputs)
