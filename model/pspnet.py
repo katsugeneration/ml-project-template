@@ -98,10 +98,16 @@ class PSPNet(KerasImageSegmentationBase):
 
         # upscale featire maps
         x = ConvUpscaleBlock(x, 256, kernel_size=[3, 3], scale=2)
+        if use_l2softmax:
+            x = x / tf.norm(x, ord='euclidean', axis=-1, keepdims=True)
         x = ConvBlock(x, 256)
         x = ConvUpscaleBlock(x, 128, kernel_size=[3, 3], scale=2)
+        if use_l2softmax:
+            x = x / tf.norm(x, ord='euclidean', axis=-1, keepdims=True)
         x = ConvBlock(x, 128)
         x = ConvUpscaleBlock(x, 64, kernel_size=[3, 3], scale=2)
+        if use_l2softmax:
+            x = x / tf.norm(x, ord='euclidean', axis=-1, keepdims=True)
         x = ConvBlock(x, 64)
         x = tf.keras.layers.Conv2D(self.dataset.category_nums, [1, 1])(x)
 
