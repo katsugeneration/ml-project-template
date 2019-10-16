@@ -256,7 +256,7 @@ class KerasImageSegmentationBase(KerasImageClassifierBase):
                     tf.py_function(morphology.distance_transform_edt, [y_true[:, :, :, 1]], tf.double),
                     tf.keras.backend.floatx())
             boundary_losses = (
-                w[:, 0] * tf.math.reduce_sum(distance_negative * y_true[:, :, :, 0] * y_pred[:, :, :, 1], axis=(1, 2)) +
+                -w[:, 0] * tf.math.reduce_sum(distance_negative * y_true[:, :, :, 0] * y_pred[:, :, :, 0], axis=(1, 2)) +
                 w[:, 1] * tf.math.reduce_sum(distance_positive * y_true[:, :, :, 1] * y_pred[:, :, :, 0], axis=(1, 2)))
             return tf.reduce_mean(gd_losses) + self.generarized_dice_loss['alpha'] * tf.reduce_mean(boundary_losses)
 
