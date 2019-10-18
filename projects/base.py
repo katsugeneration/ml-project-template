@@ -68,5 +68,5 @@ class ProjectBase(luigi.Task):
         if self._run_object:
             return self._run_object
         if not self.update:
-            return mlflow_utils.search_run_object(self.run_name, self.parameters, self.experiment_id)
+            return mlflow_utils.search_run_object(self.run_name, dict(self.parameters, **{'name': self.name}), self.experiment_id)
         return None
