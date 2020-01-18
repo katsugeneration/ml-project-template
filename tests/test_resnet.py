@@ -19,12 +19,30 @@ class TestResnet(object):
                     block_nums=1,
                     use_se=True)
         ok_(isinstance(resnet.blocks[0]['residual_path'][-1], SEBlock))
+
+    def test_init_usext(self):
+        resnet = ResNet(
+                    dataset=DummyDataset(),
+                    block_nums=1,
+                    use_xt=True)
+        ok_(isinstance(resnet.blocks[0]['residual_path'][-4], list))
         
     def test_train(self):
         resnet = ResNet(
                     dataset=DummyDataset(batch_size=2),
                     block_nums=1,
                     epochs=1)
+        history = resnet.train()
+
+        ok_('accuracy' in history)
+        ok_('loss' in history)
+        
+    def test_train_usext(self):
+        resnet = ResNet(
+                    dataset=DummyDataset(batch_size=2),
+                    block_nums=1,
+                    epochs=1,
+                    use_xt=True)
         history = resnet.train()
 
         ok_('accuracy' in history)

@@ -12,6 +12,7 @@ class ResNet(KerasImageClassifierBase):
     Args:
         block_nums (int): number of block units.
         use_se (bool): whether to use squeeze-and-excitation block
+        use_xt (bool): whether to use grouped convolution block
 
     """
 
@@ -19,6 +20,7 @@ class ResNet(KerasImageClassifierBase):
             self,
             block_nums: int = 3,
             use_se: bool = False,
+            use_xt: bool = False,
             **kwargs: Any) -> None:
         """Intialize parameter and build model."""
         # initialize params
@@ -26,6 +28,7 @@ class ResNet(KerasImageClassifierBase):
         self.block_nums = block_nums
 
         self.channels = [16, 32, 64]
+        self.group_num = 32
 
         self.start_conv = tf.keras.layers.Conv2D(
                                 self.channels[0],
@@ -40,6 +43,7 @@ class ResNet(KerasImageClassifierBase):
             for i in range(self.block_nums):
                 subsampling = i == 0 and c > 16
                 out_c = c*4
+                in_c = c
                 strides = (2, 2) if subsampling else (1, 1)
 
                 initial_path = [
@@ -47,11 +51,30 @@ class ResNet(KerasImageClassifierBase):
                     tf.keras.layers.Activation(tf.nn.relu)
                 ]
 
+                intermidiate = tf.keras.layers.Conv2D(
+                                        in_c,
+                                        kernel_size=(3, 3),
+                                        padding="same",
+                                        kernel_initializer="he_normal",
+                                        kernel_regularizer=tf.keras.regularizers.l2(1e-4))
+                if use_xt:
+                    in_c = c * 2
+                    intermidiate = []
+                    for j in range(self.group_num):
+                        intermidiate.append(
+                            tf.keras.layers.Conv2D(
+                                        in_c // self.group_num,
+                                        kernel_size=(3, 3),
+                                        padding="same",
+                                        kernel_initializer="he_normal",
+                                        kernel_regularizer=tf.keras.regularizers.l2(1e-4))
+                        )
+
                 residual_path = [
                     initial_path[0],
                     initial_path[1],
                     tf.keras.layers.Conv2D(
-                            c,
+                            in_c,
                             kernel_size=(1, 1),
                             padding="same",
                             strides=strides,
@@ -60,12 +83,7 @@ class ResNet(KerasImageClassifierBase):
 
                     tf.keras.layers.BatchNormalization(),
                     tf.keras.layers.Activation(tf.nn.relu),
-                    tf.keras.layers.Conv2D(
-                            c,
-                            kernel_size=(3, 3),
-                            padding="same",
-                            kernel_initializer="he_normal",
-                            kernel_regularizer=tf.keras.regularizers.l2(1e-4)),
+                    intermidiate,
 
                     tf.keras.layers.BatchNormalization(),
                     tf.keras.layers.Activation(tf.nn.relu),
@@ -120,7 +138,13 @@ class ResNet(KerasImageClassifierBase):
         for b in self.blocks:
             residual = x
             for l in b["residual_path"]:
-                residual = l(residual)
+                if use_xt and isinstance(l, list):
+                    c = residual.shape[-1] // self.group_num
+                    residual = tf.concat([
+                        l[j](residual[:, :, :, j*c:(j+1)*c])
+                        for j in range(self.group_num)], axis=-1)
+                else:
+                    residual = l(residual)
             for l in b["identity_path"]:
                 x = l(x)
             x = tf.keras.layers.Add()([x, residual])
