@@ -24,16 +24,15 @@ def _save_conf(model, dataset, preprocess):
             'dataset': dataset,
             'preprocess': preprocess}, f)
 
+def setup(self):
+    mlflow.set_tracking_uri('file://' + str(pathlib.Path('./testrun').absolute()))
+
+def teardown(self):
+    if pathlib.Path('./testrun').exists():
+        shutil.rmtree('./testrun')
+    pathlib.Path(CONF_PATH).unlink()
 
 class TestRunOnceProject(object):
-    def setup(self):
-        mlflow.set_tracking_uri('file://' + str(pathlib.Path('./testrun').absolute()))
-
-    def teardown(self):
-        if pathlib.Path('./testrun').exists():
-            shutil.rmtree('./testrun')
-        pathlib.Path(CONF_PATH).unlink()
-
     def test_run_once(self):
         _save_conf({'epochs': 1}, {}, {})
         project = RunOnceProject(**{
