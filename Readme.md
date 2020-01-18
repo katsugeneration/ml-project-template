@@ -38,7 +38,7 @@ It includes model and dataset and preprocesssing section.
 
 Model configuration is diffrent allowed parameters for model.
 
-Model object extends KerasImageClassifierBase can be set number of epoch, learning rate, etc.
+Model object extends [KerasImageClassifierBase](/model/base.py#L79) can be set number of epoch, learning rate, etc.
 
 ```yaml
 model:
@@ -52,7 +52,7 @@ It means that model run 100 epochs and 0.001 learning rate.
 
 Dataset configuration is diffrent allowed parameters for dataset.
 
-Dataset object extends ImageClassifierDatasetBase can be set batch size, etc.
+Dataset object extends [ImageClassifierDatasetBase](/dataset/base.py#L58) can be set batch size, etc.
 
 ```yaml
 dataset:
@@ -63,7 +63,7 @@ It means that dataset is used with 128 batch.
 
 ### Preprocess configuration
 
-Preprocess configuration consits of preprocess projects and these parameters and rerun target.
+Preprocess configuration consits of preprocess projects, these parameters and rerunning target.
 
 `projects` is preprocess projects setting as dictionary. project name and function name pairs are set, projects are ran from top to bottom and use previous project results.
 
@@ -91,17 +91,11 @@ It means that download and decompose projects are running with name parameter, b
 
 ## Workflow for your own task
 This framework can apply to specific model, specific dataset and specific task.
-For example, when you use to image classification task with your custom model,
-you implement model class extends [KerasImageClassifierBase](/model/base.py) class.
+
+For example, when you use to image classification task with your custom model,you implement model class extends [KerasImageClassifierBase](/model/base.py#L79) class.
 
 This class is implemented to learn image classification with `model` property, 
 which constructed by Keras functional API.
-
-Let's See below for details.
-
-- [Model settings and implementation](/model/Readme.md)
-- [Dataset settings and implementation](/dataset/Readme.md)
-- [Runner implementation](/runner/Readme.md)
 
 # Test and linting
 Run following command for testing and linting.
