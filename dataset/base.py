@@ -240,7 +240,7 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
             label (np.array): label array. shape is H x W x category_nums
 
         """
-        label = np.zeros((image.shape[0], image.shape[1], self.category_nums))
+        label = np.zeros((image.shape[0], image.shape[1], self.category_nums), dtype=np.bool)
         for i, r in self.class_dict.iterrows():
             equality = np.equal(image, [r['r'], r['g'], r['b']]).all(axis=-1)
             label[:, :, i][equality] = 1
