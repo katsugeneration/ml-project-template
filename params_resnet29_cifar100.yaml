@@ -1,0 +1,15 @@
+model:
+  epochs: 160
+  clipnorm: 1.0
+  lr: 0.1
+  lr_step_decay: true
+
+dataset:
+  data_normalize_style: 'standardization'
+  use_mixup: true
+  batch_size: 128
+  width_shift_range: 4
+  height_shift_range: 4
+  horizontal_flip: true
+
+preprocess: {}
