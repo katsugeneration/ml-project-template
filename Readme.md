@@ -1,36 +1,93 @@
 Machine Learning Project Template
 
 # Introduction
-This repository is mlflow based machine learning project template.
-It will make easy to start machine learning project regardless of dataset and framework.
+This repository is mlflow and luigi based machine learning project template.
+
+It will make easy to start machine learning project regardless of dataset and framework with data preprocessing.
+
+You can rerun at main task or intermediate preprocessing, such as image cropping.
 
 # Usage
 Run following commands for install and training mnist classifier with fully connected network.
 ```sh
 poetry install
-poetry run mlflow run . --no-conda -P runner=image_recognition_trainer -P model=fcnn -P dataset=mnist
+PYTHONPATH='.' poetry run luigi --module projects.run_once RunOnceProject --runner image_recognition_trainer --model fcnn --dataset mnistraw --param-path params.yaml --local-scheduler
 ```
 
-Please see [MLflow Document](https://www.mlflow.org/docs/latest/index.html) for MLflow usage.
+After the running, result files are created under the mlflow directory.
+
+You can see the results by `mlflow ui` and the running tasks by luigi server.
+
+Please see [MLflow Document](https://www.mlflow.org/docs/latest/index.html) and [Luigi Document](https://luigi.readthedocs.io/en/stable/#) for detail usage.
+
+## running configuration
+Following parameters should be set for running.
+- `module`: Only 'projects.run_once' can be set now.
+- `Task Name`: Only 'RunOnceProject' can be set after module name.
+- `runner`: Running target. File name under the 'runner' directory can be set.
+- `model`: Running model name. Any model allowed by runner can be set.
+- `dataset`: Running dataset name. Any dataset allowed by runner can be set.
+- `param-path`: Model and dataset and preprocesssing parameters.
 
 ## Learning parameters configuration
-Parameters configuration can set to `model_param_path` and `dataset_param_path` for mlflow project arguments.
+Parameters configuration can set `param-path` to yaml format file.
 
-```sh
-poetry run mlflow run . --no-conda -P runner=image_recognition_trainer -P model_param_path=model.conf.yaml -P dataset_param_path=dataset.conf.yaml
+It includes model and dataset and preprocesssing section.
+
+### Model configuration
+
+Model configuration is diffrent allowed parameters for model.
+
+Model object extends KerasImageClassifierBase can be set number of epoch, learning rate, etc.
+
+```yaml
+model:
+  epochs: 100
+  lr: 0.001
 ```
 
-Configuration files are yaml format.
-Default model_param_path `model.conf.yaml` has following content.
+It means that model run 100 epochs and 0.001 learning rate.
 
-```yaml:model.conf.yaml
-hidden_nums: 512
-dropout_rate: 0.2
+### Dataset configuration
+
+Dataset configuration is diffrent allowed parameters for dataset.
+
+Dataset object extends ImageClassifierDatasetBase can be set batch size, etc.
+
+```yaml
+dataset:
+  batch_size: 128
 ```
 
-It means that fully connected network has 512 hidden layer units and 0.2 dropout.
-So this configuration is changed, you can apply modifiable parameters to model.
-Dataset parameters configuration is same as model parameters.
+It means that dataset is used with 128 batch.
+
+### Preprocess configuration
+
+Preprocess configuration consits of preprocess projects and these parameters and rerun target.
+
+`projects` is preprocess projects setting as dictionary. project name and function name pairs are set, projects are ran from top to bottom and use previous project results.
+
+`parameters` is all project configuration. It is used to every preprocess project.
+
+`update_task` is rerun target project name. When `update_task` is set, the running start target project. In contrast, when `update_task` is empty, the running only act runner project.
+
+In any case, when dependent projects have not been acted with configuration parameters, these projects are running.
+
+```yaml
+preprocess:
+  projects:
+    Download:
+      dataset.mnist_from_raw.download_data
+    Decompose:
+      dataset.mnist_from_raw.decompose_data
+
+  parameters:
+    name: sample
+
+  update_task: 'Decompose'
+```
+
+It means that download and decompose projects are running with name parameter, but if download have not been acted.
 
 ## Workflow for your own task
 This framework can apply to specific model, specific dataset and specific task.
@@ -53,7 +110,6 @@ poetry run tox
 ```
 
 # Todo
-- [] multiple task chain template
 - [] hyper parameter search template
 
 # License

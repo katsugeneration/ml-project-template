@@ -1,0 +1,22 @@
+model:
+  epochs: 10
+  hidden_nums: 128
+  lr: 0.01
+  lr_step_decay: false
+
+dataset:
+  batch_size: 128
+  use_mixup: true
+  data_path: '{{ search_preprocess_directory("dataset.mnist_from_raw.decompose_data", preprocess_params) }}'
+
+preprocess:
+  projects:
+    Download:
+      dataset.mnist_from_raw.download_data
+    Decompose:
+      dataset.mnist_from_raw.decompose_data
+
+  parameters:
+    name: sample
+
+  update_task: ''
