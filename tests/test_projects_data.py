@@ -231,7 +231,7 @@ class TestProjectsData(object):
 
         project = create_data_prepare(
                         {'Test2': _test_global, 'Test1': test1},
-                        {'a': "{{ search_preprocess_directory('tests.test_projects_data._test_global', {'b': 2}).joinpath('aaa').open('r').read() }}", 'b': 2})
+                        {'name': 'test', 'a': "{{ search_preprocess_directory('tests.test_projects_data._test_global', {'name': 'test', 'b': 2}).joinpath('aaa').open('r').read() }}", 'b': 2})
         run_result = luigi.build([project], worker_scheduler_factory=DummyFactory())
         ok_(run_result)
         ok_(project.output().exists())
@@ -252,7 +252,7 @@ class TestProjectsData(object):
 
         project = create_data_prepare(
                         {'Test2': _test_global, 'Test1': test1},
-                        {'a': "{{ search_preprocess_directory('tests.test_projects_data._test_global', {'b': 'b'*251}).joinpath('aaa').open('r').read() }}", 'b': large_param})
+                        {'name': 'test', 'a': "{{ search_preprocess_directory('tests.test_projects_data._test_global', {'name': 'test', 'b': 'b'*251}).joinpath('aaa').open('r').read() }}", 'b': large_param})
         run_result = luigi.build([project], worker_scheduler_factory=DummyFactory())
         ok_(run_result)
         ok_(project.output().exists())
@@ -272,7 +272,7 @@ class TestProjectsData(object):
 
         project = create_data_prepare(
                         {'Test2': _test_global, 'Test1': test1},
-                        {'a': {'aa': ["{{ search_preprocess_directory('tests.test_projects_data._test_global', {'b': [{'bb': 'gggg'}]}).joinpath('aaa').open('r').read() }}"]}, 'b': [{'bb': "gggg"}]})
+                        {'name': 'test', 'a': {'aa': ["{{ search_preprocess_directory('tests.test_projects_data._test_global', {'name': 'test', 'b': [{'bb': 'gggg'}]}).joinpath('aaa').open('r').read() }}"]}, 'b': [{'bb': "gggg"}]})
         run_result = luigi.build([project], worker_scheduler_factory=DummyFactory())
         ok_(run_result)
         ok_(project.output().exists())

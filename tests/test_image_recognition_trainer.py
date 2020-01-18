@@ -17,4 +17,3 @@ class TestImageRecognitionTrainer(object):
         history = runner.run('fcnn', 'mnist', {'epochs': 1}, {'batch_size': 128}, path)
 
         ok_(path.joinpath('model.h5').exists())
-        ok_(path.joinpath('confusion_matrix.png').exists())

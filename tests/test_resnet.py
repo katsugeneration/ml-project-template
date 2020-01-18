@@ -27,5 +27,5 @@ class TestResnet(object):
                     epochs=1)
         history = resnet.train()
 
-        ok_('acc' in history)
+        ok_('accuracy' in history)
         ok_('loss' in history)
