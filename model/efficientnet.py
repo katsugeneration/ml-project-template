@@ -184,9 +184,9 @@ class EfficientNet(KerasImageClassifierBase):
             strides = (self.strides[i], self.strides[i])
 
             for j in range(self.blocks[i]):
-                self.hiddens.append(MBConvBlock(input_filters, output_filters, 6, kernel_size, strides, 0.25))
                 if j > 0:
-                    self.hiddens.append(MBConvBlock(input_filters, output_filters, 6, kernel_size, (1, 1), 0.25))
+                    strides = (1, 1)
+                self.hiddens.append(MBConvBlock(input_filters, output_filters, 6, kernel_size, strides, 0.25))
 
         self.end_conv = tf.keras.layers.Conv2D(
                                 self.round_filters(
