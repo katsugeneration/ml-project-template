@@ -17,6 +17,7 @@ from model.base import ModelBase
 from model.fcnn import FCNNClassifier
 from model.resnet import ResNet
 from model.resnet101 import ResNet101
+from model.efficientnet import EfficientNet
 
 
 class ImageRecognitionTrainer(RunnerBase):
@@ -35,6 +36,7 @@ class ImageRecognitionTrainer(RunnerBase):
             'fcnn': FCNNClassifier,
             'resnet': ResNet,
             'resnet101': ResNet101,
+            'efficientnet': EfficientNet,
         }
 
     def _run(
