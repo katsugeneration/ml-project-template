@@ -20,6 +20,7 @@ class ResNet(KerasImageClassifierBase):
     def __init__(
             self,
             block_nums: int = 3,
+            weight_decay: float = 1e-4,
             use_se: bool = False,
             use_xt: bool = False,
             group_num: int = 2,
@@ -36,7 +37,7 @@ class ResNet(KerasImageClassifierBase):
                                 kernel_size=(3, 3),
                                 padding="same",
                                 kernel_initializer="he_normal",
-                                kernel_regularizer=tf.keras.regularizers.l2(1e-4),
+                                kernel_regularizer=tf.keras.regularizers.l2(weight_decay),
                                 input_shape=self.dataset.input_shape)
 
         self.blocks: List = []
@@ -57,7 +58,7 @@ class ResNet(KerasImageClassifierBase):
                                         kernel_size=(3, 3),
                                         padding="same",
                                         kernel_initializer="he_normal",
-                                        kernel_regularizer=tf.keras.regularizers.l2(1e-4))
+                                        kernel_regularizer=tf.keras.regularizers.l2(weight_decay))
                 if use_xt:
                     in_c = c * group_num * 4
                     out_c = c * 4 * 4
@@ -69,7 +70,7 @@ class ResNet(KerasImageClassifierBase):
                                         kernel_size=(3, 3),
                                         padding="same",
                                         kernel_initializer="he_normal",
-                                        kernel_regularizer=tf.keras.regularizers.l2(1e-4))
+                                        kernel_regularizer=tf.keras.regularizers.l2(weight_decay))
                         )
 
                 residual_path = [
@@ -81,7 +82,7 @@ class ResNet(KerasImageClassifierBase):
                             padding="same",
                             strides=strides,
                             kernel_initializer="he_normal",
-                            kernel_regularizer=tf.keras.regularizers.l2(1e-4)),
+                            kernel_regularizer=tf.keras.regularizers.l2(weight_decay)),
 
                     tf.keras.layers.BatchNormalization(),
                     tf.keras.layers.Activation(tf.nn.relu),
@@ -94,7 +95,7 @@ class ResNet(KerasImageClassifierBase):
                             kernel_size=(1, 1),
                             padding="same",
                             kernel_initializer="he_normal",
-                            kernel_regularizer=tf.keras.regularizers.l2(1e-4)),
+                            kernel_regularizer=tf.keras.regularizers.l2(weight_decay)),
 
                 ]
 
@@ -111,7 +112,7 @@ class ResNet(KerasImageClassifierBase):
                                 strides=strides,
                                 padding="same",
                                 kernel_initializer="he_normal",
-                                kernel_regularizer=tf.keras.regularizers.l2(1e-4))
+                                kernel_regularizer=tf.keras.regularizers.l2(weight_decay))
                     ]
                 else:
                     identity_path = []
@@ -130,7 +131,7 @@ class ResNet(KerasImageClassifierBase):
                 self.dataset.category_nums,
                 activation=tf.nn.softmax,
                 kernel_initializer="he_normal",
-                kernel_regularizer=tf.keras.regularizers.l2(1e-4))
+                kernel_regularizer=tf.keras.regularizers.l2(weight_decay))
         ]
 
         # build model
