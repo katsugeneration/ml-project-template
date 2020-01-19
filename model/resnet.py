@@ -13,6 +13,7 @@ class ResNet(KerasImageClassifierBase):
         block_nums (int): number of block units.
         use_se (bool): whether to use squeeze-and-excitation block
         use_xt (bool): whether to use grouped convolution block
+        group_num (int): ResNetXt block group number.
 
     """
 
@@ -21,6 +22,7 @@ class ResNet(KerasImageClassifierBase):
             block_nums: int = 3,
             use_se: bool = False,
             use_xt: bool = False,
+            group_num: int = 2,
             **kwargs: Any) -> None:
         """Intialize parameter and build model."""
         # initialize params
@@ -28,7 +30,6 @@ class ResNet(KerasImageClassifierBase):
         self.block_nums = block_nums
 
         self.channels = [16, 32, 64]
-        self.group_num = 32
 
         self.start_conv = tf.keras.layers.Conv2D(
                                 self.channels[0],
@@ -58,12 +59,13 @@ class ResNet(KerasImageClassifierBase):
                                         kernel_initializer="he_normal",
                                         kernel_regularizer=tf.keras.regularizers.l2(1e-4))
                 if use_xt:
-                    in_c = c * 2
+                    in_c = c * group_num * 4
+                    out_c = c * 4 * 4
                     intermidiate = []
-                    for j in range(self.group_num):
+                    for j in range(group_num):
                         intermidiate.append(
                             tf.keras.layers.Conv2D(
-                                        in_c // self.group_num,
+                                        in_c // group_num,
                                         kernel_size=(3, 3),
                                         padding="same",
                                         kernel_initializer="he_normal",
@@ -139,10 +141,10 @@ class ResNet(KerasImageClassifierBase):
             residual = x
             for l in b["residual_path"]:
                 if use_xt and isinstance(l, list):
-                    c = residual.shape[-1] // self.group_num
+                    c = residual.shape[-1] // group_num
                     residual = tf.concat([
                         l[j](residual[:, :, :, j*c:(j+1)*c])
-                        for j in range(self.group_num)], axis=-1)
+                        for j in range(group_num)], axis=-1)
                 else:
                     residual = l(residual)
             for l in b["identity_path"]:
