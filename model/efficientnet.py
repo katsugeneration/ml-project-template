@@ -2,8 +2,26 @@
 # Licensed under the MIT License.
 from typing import Any, List
 import tensorflow as tf
+import numpy as np
 from model.base import KerasImageClassifierBase
-from model.se_block import SEBlock
+
+
+def dense_kernel_initializer(shape, dtype=None, partition_info=None):
+    """Initialization for dense kernels.
+    This initialization is equal to
+        tf.variance_scaling_initializer(scale=1.0/3.0, mode='fan_out',
+                                        distribution='uniform').
+    It is written out explicitly here for clarity.
+    Args:
+        shape: shape of variable
+        dtype: dtype of variable
+        partition_info: unused
+    Returns:
+        an initialization for the variable
+    """
+    del partition_info
+    init_range = 1.0 / np.sqrt(shape[1])
+    return tf.random.uniform(shape, -init_range, init_range, dtype=dtype)
 
 
 class MBConvBlock(tf.keras.layers.Layer):
@@ -171,7 +189,6 @@ class EfficientNet(KerasImageClassifierBase):
                                 strides=(self.strides[0], self.strides[0]),
                                 kernel_initializer="he_normal",
                                 kernel_regularizer=tf.keras.regularizers.l2(weight_decay),
-                                input_shape=(224, 224),
                                 use_bias=False)
         self.start_bn = tf.keras.layers.BatchNormalization()
 
@@ -205,20 +222,22 @@ class EfficientNet(KerasImageClassifierBase):
         self.end_block = [
             self.end_conv,
             self.end_bn,
+            tf.keras.layers.Activation(tf.nn.swish),
             tf.keras.layers.GlobalAveragePooling2D(),
             tf.keras.layers.Flatten(),
             tf.keras.layers.Dense(
                 self.dataset.category_nums,
                 activation=tf.nn.softmax,
-                kernel_initializer="he_normal",
+                kernel_initializer=dense_kernel_initializer,
                 kernel_regularizer=tf.keras.regularizers.l2(weight_decay))
         ]
 
         # build model
         inputs = tf.keras.layers.Input(self.dataset.input_shape)
-        x = tf.image.resize(inputs, (224, 224))
+        x = tf.image.resize(inputs, (32, 32))
         x = self.start_conv(x)
         x = self.start_bn(x)
+        x = tf.keras.layers.Activation(tf.nn.swish)(x)
 
         for h in self.hiddens:
             x = h(x)
