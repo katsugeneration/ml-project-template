@@ -87,6 +87,7 @@ class KerasImageClassifierBase(KerasModelBase):
         momentum (float): momentum value.
         clipnorm (float): clipnorm value
         lr_step_decay (bool): whether to use step learning rate decay.
+        lr_step_span(float): learning rate decay span.
         decay (float): learning rate decay parameter.
         weighted_loss (List[float]): loss weight.
         restore_path (Union[str, pathlib.Path]): path to restore model file
@@ -102,6 +103,7 @@ class KerasImageClassifierBase(KerasModelBase):
             momentum: float = 0.9,
             clipnorm: float = 1.0,
             lr_step_decay: bool = True,
+            lr_step_span: float = 0.0,
             decay: float = 0.0,
             weighted_loss: Optional[List[float]] = None,
             restore_path: Union[str, pathlib.Path] = None,
@@ -115,6 +117,8 @@ class KerasImageClassifierBase(KerasModelBase):
         self.momentum = momentum
         self.clipnorm = clipnorm
         self.lr_step_decay = lr_step_decay
+        self.lr_step_span = lr_step_span
+        self.decay = decay
         self.weighted_loss = weighted_loss
         self.restore_path = restore_path
 
@@ -145,8 +149,12 @@ class KerasImageClassifierBase(KerasModelBase):
         """
         callbacks: List = []
         if self.lr_step_decay:
-            callbacks.append(tf.keras.callbacks.LearningRateScheduler(
-                    lambda e: self.lr if e < int(self.epochs / 2) else self.lr / 10.0 if e < int(self.epochs * 3 / 4) else self.lr / 100.0))
+            if self.lr_step_span != 0.0:
+                callbacks.append(tf.keras.callbacks.LearningRateScheduler(
+                        lambda e: self.lr * tf.math.pow(self.decay, (e // self.lr_step_span))))
+            else:
+                callbacks.append(tf.keras.callbacks.LearningRateScheduler(
+                        lambda e: self.lr if e < int(self.epochs / 2) else self.lr / 10.0 if e < int(self.epochs * 3 / 4) else self.lr / 100.0))
 
         generator = self.dataset.training_data_generator()
         eval_generator = self.dataset.eval_data_generator()
