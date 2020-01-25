@@ -76,6 +76,18 @@ class KerasModelBase(ModelBase):
         self.model: tf.keras.Model
 
 
+class TerminateOnValNaN(tf.keras.callbacks.Callback):
+    """Callback that terminates training when a NaN validation loss is encountered."""
+
+    def on_epoch_end(self, batch, logs=None):
+        logs = logs or {}
+        loss = logs.get('val_loss')
+        if loss is not None:
+            if np.isnan(loss) or np.isinf(loss):
+                print('Batch %d: Invalid loss, terminating training' % (batch))
+                self.model.stop_training = True
+
+
 class KerasImageClassifierBase(KerasModelBase):
     """Keras image classification model base.
 
@@ -147,7 +159,11 @@ class KerasImageClassifierBase(KerasModelBase):
             log (Dict[str, List[Any]]): training log.
 
         """
-        callbacks: List = []
+        callbacks: List = [
+            TerminateOnValNaN(),
+            tf.keras.callbacks.TerminateOnNaN(),
+            tf.keras.callbacks.TensorBoard(write_graph=False, histogram_freq=1)
+        ]
         if self.lr_step_decay:
             if self.lr_step_span != 0.0:
                 callbacks.append(tf.keras.callbacks.LearningRateScheduler(
