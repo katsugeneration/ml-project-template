@@ -1,9 +1,28 @@
 # Copyright 2019 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
 from typing import Any, List
+import functools
 import tensorflow as tf
 import numpy as np
 from model.base import KerasImageClassifierBase
+
+
+def drop_connect(inputs, is_training, survival_prob):
+    """Drop the entire conv with given survival probability."""
+    # "Deep Networks with Stochastic Depth", https://arxiv.org/pdf/1603.09382.pdf
+    if not is_training:
+        return inputs
+
+    # Compute tensor.
+    batch_size = tf.shape(inputs)[0]
+    random_tensor = survival_prob
+    random_tensor += tf.random.uniform([batch_size, 1, 1, 1], dtype=inputs.dtype)
+    binary_tensor = tf.floor(random_tensor)
+    # Unlike conventional way that multiply survival_prob at test time, here we
+    # divide survival_prob at training time, such that no addition compute is
+    # needed at test time.
+    output = tf.math.divide(inputs, survival_prob) * binary_tensor
+    return output
 
 
 def dense_kernel_initializer(shape, dtype=None, partition_info=None):
@@ -44,6 +63,7 @@ class MBConvBlock(tf.keras.layers.Layer):
         self.kernel_size = kernel_size
         self.strides = strides
         self.se_ratio = se_ratio
+        self._kernel_initializer = tf.keras.initializers.he_normal()
 
         self._relu_fn = tf.nn.swish
 
@@ -65,7 +85,7 @@ class MBConvBlock(tf.keras.layers.Layer):
             filters=filters,
             kernel_size=[1, 1],
             strides=[1, 1],
-            kernel_initializer="he_normal",
+            kernel_initializer=self._kernel_initializer,
             padding='same',
             use_bias=False)
         self._bn0 = tf.keras.layers.BatchNormalization()
@@ -74,7 +94,7 @@ class MBConvBlock(tf.keras.layers.Layer):
         self._depthwise_conv = self.depthwise_conv_cls(
             kernel_size=[kernel_size, kernel_size],
             strides=self.strides,
-            depthwise_initializer="he_normal",
+            depthwise_initializer=self._kernel_initializer,
             padding='same',
             use_bias=False)
         self._bn1 = tf.keras.layers.BatchNormalization()
@@ -86,14 +106,14 @@ class MBConvBlock(tf.keras.layers.Layer):
             num_reduced_filters,
             kernel_size=[1, 1],
             strides=[1, 1],
-            kernel_initializer="he_normal",
+            kernel_initializer=self._kernel_initializer,
             padding='same',
             use_bias=True)
         self._se_expand = tf.keras.layers.Conv2D(
             filters,
             kernel_size=[1, 1],
             strides=[1, 1],
-            kernel_initializer="he_normal",
+            kernel_initializer=self._kernel_initializer,
             padding='same',
             use_bias=True)
 
@@ -103,7 +123,7 @@ class MBConvBlock(tf.keras.layers.Layer):
             filters=filters,
             kernel_size=[1, 1],
             strides=[1, 1],
-            kernel_initializer="he_normal",
+            kernel_initializer=self._kernel_initializer,
             padding='same',
             use_bias=False)
         self._bn2 = tf.keras.layers.BatchNormalization()
@@ -119,11 +139,13 @@ class MBConvBlock(tf.keras.layers.Layer):
         se_tensor = self._se_expand(self._relu_fn(self._se_reduce(se_tensor)))
         return tf.sigmoid(se_tensor) * input_tensor
 
-    def call(self, inputs, training=True):
+    def call(self, inputs, training=True, survival_prob=None):
         """Implementation of call().
         Args:
             inputs: the inputs tensor.
             training: boolean, whether the model is constructed for training.
+            survival_prob: float, between 0 to 1, drop connect rate.
+
         Returns:
             A output tensor.
         """
@@ -150,6 +172,7 @@ class MBConvBlock(tf.keras.layers.Layer):
         # ops correctly.
         x = tf.identity(x)
         if all(s == 1 for s in self.strides) and self.input_filters == self.output_filters:
+            x = drop_connect(x, training, survival_prob)
             x = tf.add(x, inputs)
         return x
 
@@ -177,6 +200,9 @@ class EfficientNet(KerasImageClassifierBase):
         self.blocks = [1, 1, 2, 2, 3, 3, 4, 1, 1]
         self.kernels = [3, 3, 3, 5, 3, 5, 5, 3, 1]
         self.strides = [2, 1, 2, 2, 2, 1, 2, 1, 1]
+        self.dropout_rate = 0.2
+        self.survival_prob = 0.8
+        self._kernel_initializer = tf.keras.initializers.he_normal()
 
         self.start_conv = tf.keras.layers.Conv2D(
                                 self.round_filters(
@@ -187,7 +213,7 @@ class EfficientNet(KerasImageClassifierBase):
                                 kernel_size=(self.kernels[0], self.kernels[0]),
                                 padding="same",
                                 strides=(self.strides[0], self.strides[0]),
-                                kernel_initializer="he_normal",
+                                kernel_initializer=self._kernel_initializer,
                                 kernel_regularizer=tf.keras.regularizers.l2(weight_decay),
                                 use_bias=False)
         self.start_bn = tf.keras.layers.BatchNormalization()
@@ -203,6 +229,7 @@ class EfficientNet(KerasImageClassifierBase):
             for j in range(self.blocks[i]):
                 if j > 0:
                     strides = (1, 1)
+                    input_filters = output_filters
                 self.hiddens.append(MBConvBlock(input_filters, output_filters, 6, kernel_size, strides, 0.25))
 
         self.end_conv = tf.keras.layers.Conv2D(
@@ -214,7 +241,7 @@ class EfficientNet(KerasImageClassifierBase):
                                 kernel_size=(self.kernels[-1], self.kernels[-1]),
                                 padding="same",
                                 strides=(self.strides[-1], self.strides[-1]),
-                                kernel_initializer="he_normal",
+                                kernel_initializer=self._kernel_initializer,
                                 kernel_regularizer=tf.keras.regularizers.l2(weight_decay),
                                 use_bias=False)
         self.end_bn = tf.keras.layers.BatchNormalization()
@@ -224,6 +251,7 @@ class EfficientNet(KerasImageClassifierBase):
             self.end_bn,
             tf.keras.layers.Activation(tf.nn.swish),
             tf.keras.layers.GlobalAveragePooling2D(),
+            tf.keras.layers.Dropout(self.dropout_rate),
             tf.keras.layers.Flatten(),
             tf.keras.layers.Dense(
                 self.dataset.category_nums,
@@ -234,13 +262,15 @@ class EfficientNet(KerasImageClassifierBase):
 
         # build model
         inputs = tf.keras.layers.Input(self.dataset.input_shape)
-        x = tf.image.resize(inputs, (32, 32))
+        x = tf.image.resize(inputs, (224, 224))
         x = self.start_conv(x)
         x = self.start_bn(x)
         x = tf.keras.layers.Activation(tf.nn.swish)(x)
 
-        for h in self.hiddens:
-            x = h(x)
+        for idx, h in enumerate(self.hiddens):
+            drop_rate = 1.0 - self.survival_prob
+            survival_prob = 1.0 - drop_rate * float(idx) / len(self.hiddens)
+            x = h(x, survival_prob=survival_prob)
 
         for l in self.end_block:
             x = l(x)
