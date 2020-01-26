@@ -33,12 +33,13 @@ class ResNet(KerasImageClassifierBase):
         self.channels = [16, 32, 64]
 
         self.start_conv = tf.keras.layers.Conv2D(
-                                self.channels[0],
+                                self.channels[0] if not use_xt else self.channels[0] * 8,
                                 kernel_size=(3, 3),
                                 padding="same",
                                 kernel_initializer="he_normal",
                                 kernel_regularizer=tf.keras.regularizers.l2(weight_decay),
-                                input_shape=self.dataset.input_shape)
+                                input_shape=self.dataset.input_shape,
+                                use_bias=False)
 
         self.blocks: List = []
         for c in self.channels:
@@ -58,10 +59,11 @@ class ResNet(KerasImageClassifierBase):
                                         kernel_size=(3, 3),
                                         padding="same",
                                         kernel_initializer="he_normal",
-                                        kernel_regularizer=tf.keras.regularizers.l2(weight_decay))
+                                        kernel_regularizer=tf.keras.regularizers.l2(weight_decay),
+                                        use_bias=False)
                 if use_xt:
-                    in_c = c * group_num * 4
-                    out_c = c * 4 * 4
+                    in_c = c * 8
+                    out_c = c * 16
                     intermidiate = []
                     for j in range(group_num):
                         intermidiate.append(
@@ -70,7 +72,8 @@ class ResNet(KerasImageClassifierBase):
                                         kernel_size=(3, 3),
                                         padding="same",
                                         kernel_initializer="he_normal",
-                                        kernel_regularizer=tf.keras.regularizers.l2(weight_decay))
+                                        kernel_regularizer=tf.keras.regularizers.l2(weight_decay),
+                                        use_bias=False)
                         )
 
                 residual_path = [
@@ -82,7 +85,8 @@ class ResNet(KerasImageClassifierBase):
                             padding="same",
                             strides=strides,
                             kernel_initializer="he_normal",
-                            kernel_regularizer=tf.keras.regularizers.l2(weight_decay)),
+                            kernel_regularizer=tf.keras.regularizers.l2(weight_decay),
+                            use_bias=False),
 
                     tf.keras.layers.BatchNormalization(),
                     tf.keras.layers.Activation(tf.nn.relu),
@@ -95,7 +99,8 @@ class ResNet(KerasImageClassifierBase):
                             kernel_size=(1, 1),
                             padding="same",
                             kernel_initializer="he_normal",
-                            kernel_regularizer=tf.keras.regularizers.l2(weight_decay)),
+                            kernel_regularizer=tf.keras.regularizers.l2(weight_decay),
+                            use_bias=False),
 
                 ]
 
@@ -104,15 +109,14 @@ class ResNet(KerasImageClassifierBase):
 
                 if i == 0:
                     identity_path = [
-                            initial_path[0],
-                            initial_path[1],
                             tf.keras.layers.Conv2D(
                                 out_c,
                                 kernel_size=(1, 1),
                                 strides=strides,
                                 padding="same",
                                 kernel_initializer="he_normal",
-                                kernel_regularizer=tf.keras.regularizers.l2(weight_decay))
+                                kernel_regularizer=tf.keras.regularizers.l2(weight_decay),
+                                use_bias=False)
                     ]
                 else:
                     identity_path = []
@@ -140,7 +144,7 @@ class ResNet(KerasImageClassifierBase):
 
         for b in self.blocks:
             residual = x
-            for l in b["residual_path"]:
+            for idx, l in enumerate(b["residual_path"]):
                 if use_xt and isinstance(l, list):
                     c = residual.shape[-1] // group_num
                     residual = tf.concat([
@@ -148,8 +152,10 @@ class ResNet(KerasImageClassifierBase):
                         for j in range(group_num)], axis=-1)
                 else:
                     residual = l(residual)
+                    if idx == 1:
+                        top_node = residual
             for l in b["identity_path"]:
-                x = l(x)
+                x = l(top_node)
             x = tf.keras.layers.Add()([x, residual])
 
         for l in self.end_block:
