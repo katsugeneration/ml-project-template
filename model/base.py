@@ -3,6 +3,7 @@
 from typing import Tuple, List, Dict, Any, Union, Optional
 import pathlib
 import tensorflow as tf
+import numpy as np
 import scipy.ndimage.morphology as morphology
 from dataset.base import ImageClassifierDatasetBase
 
