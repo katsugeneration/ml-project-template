@@ -80,9 +80,10 @@ class TextDummyDataset(BinaryTextDataset):
 
     def __init__(
             self,
+            data: np.array,
             **kwargs: Any) -> None:
         """Load data and setup preprocessing."""
         super(TextDummyDataset, self).__init__(**kwargs)
 
-        self.x_train = np.array([' '.join(['sss'] * self.seq_length)] * self.batch_size)
-        self.x_test = np.array([' '.join(['sss'] * self.seq_length)] * self.batch_size)
+        self.x_train = data
+        self.x_test = data

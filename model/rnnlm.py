@@ -18,7 +18,8 @@ class RNNLM(KerasImageClassifierBase):
 
         self._embdeeing = tf.keras.layers.Embedding(
                                 self.dataset.vocab_size,
-                                embedding_dim)
+                                embedding_dim,
+                                mask_zero=True)
 
         self._rnn = tf.keras.layers.GRU(
                             hidden_nums,
