@@ -4,7 +4,7 @@
 from typing import Any, Union, Generator, Tuple
 import tensorflow as tf
 import numpy as np
-from dataset.base import BinaryImageClassifierDataset, ImageSegmentationDatasetBase
+from dataset.base import BinaryImageClassifierDataset, ImageSegmentationDatasetBase, BinaryTextDataset
 
 
 class DummyDataset(BinaryImageClassifierDataset):
@@ -73,3 +73,16 @@ class SegmentationDummyDataset(ImageSegmentationDatasetBase):
         """
         y_test = tf.keras.utils.to_categorical(self.y_test, num_classes=self.category_nums)
         return self.x_test, y_test
+
+
+class TextDummyDataset(BinaryTextDataset):
+    """Dummy dataset class for test."""
+
+    def __init__(
+            self,
+            **kwargs: Any) -> None:
+        """Load data and setup preprocessing."""
+        super(TextDummyDataset, self).__init__(**kwargs)
+
+        self.x_train = np.array([' '.join(['sss'] * self.seq_length)] * self.batch_size)
+        self.x_test = np.array([' '.join(['sss'] * self.seq_length)] * self.batch_size)

@@ -395,3 +395,92 @@ class DirectoryImageSegmentationDataset(ImageSegmentationDatasetBase):
         """
         self.eval_steps_per_epoch = len(list(self.test_image_directory.glob('*'))) // self.batch_size // self.sample_num_per_image
         return self._data_generator(self.test_image_directory, self.test_label_directory)
+
+
+class TextDatasetBase(DatasetBase):
+    """Image classification dataset loader base class.
+
+    Args:
+        batch_size (int): training batch size.
+
+    """
+
+    def __init__(
+            self,
+            batch_size: int = 32,
+            seq_length: int = 128,
+            vocab_size: int = 1000,
+            **kwargs: Any) -> None:
+        """Initialize data generator."""
+        self.batch_size = batch_size
+        self.tokenizer = tf.keras.preprocessing.text.Tokenizer(num_words=vocab_size, **kwargs)
+        self.seq_length = seq_length
+        self.vocab_size = vocab_size
+        self.steps_per_epoch: int
+        self.eval_steps_per_epoch: int
+
+
+class BinaryTextDataset(TextDatasetBase):
+    """Memory loaded text dataset."""
+
+    def __init__(self, **kwargs: Any) -> None:
+        super(BinaryTextDataset, self).__init__(**kwargs)
+        self.x_train: np.array
+        self.x_test: np.array
+
+    def training_data(self) -> Tuple[np.array, np.array]:
+        """Return training dataset.
+
+        Return:
+            dataset (Tuple[np.array, np.array]): training dataset pair
+
+        """
+        _train = ['<S> ' + line + ' <E>' for line in self.x_train]
+        self.tokenizer.fit_on_texts(_train)
+        sequences = self.tokenizer.texts_to_sequences(_train)
+        sequences = tf.keras.preprocessing.sequence.pad_sequences(sequences, padding='post', maxlen=self.seq_length+1)
+        sequences = np.array(sequences)
+        return sequences[:, :-1], tf.keras.utils.to_categorical(sequences[:, 1:], num_classes=self.vocab_size)
+
+    def training_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
+        """Return training dataset.
+
+        Return:
+            dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
+
+        """
+        inputs, targets = self.training_data()
+        self.steps_per_epoch = len(inputs) // self.batch_size
+        dataset = tf.data.Dataset \
+                    .from_tensor_slices((inputs, targets)) \
+                    .shuffle(self.batch_size * 4, reshuffle_each_iteration=True) \
+                    .repeat() \
+                    .batch(self.batch_size, drop_remainder=True)
+        return dataset
+
+    def eval_data(self) -> Tuple[np.array, np.array]:
+        """Return evaluation dataset.
+
+        Return:
+            dataset (Tuple[np.array, np.array]): evaluation dataset pair
+
+        """
+        _test = ['<S> ' + line + ' <E>' for line in self.x_test]
+        sequences = self.tokenizer.texts_to_sequences(_test)
+        sequences = tf.keras.preprocessing.sequence.pad_sequences(sequences, padding='post', maxlen=self.seq_length+1)
+        sequences = np.array(sequences)
+        return sequences[:, :-1], tf.keras.utils.to_categorical(sequences[:, 1:], num_classes=self.vocab_size)
+
+    def eval_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
+        """Return evaluation dataset.
+
+        Return:
+            dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
+
+        """
+        inputs, targets = self.eval_data()
+        self.eval_steps_per_epoch = len(inputs) // self.batch_size
+        dataset = tf.data.Dataset \
+                    .from_tensor_slices((inputs, targets)) \
+                    .batch(self.batch_size, drop_remainder=False)
+        return dataset
