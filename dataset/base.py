@@ -484,3 +484,17 @@ class BinaryTextDataset(TextDatasetBase):
                     .from_tensor_slices((inputs, targets)) \
                     .batch(self.batch_size, drop_remainder=False)
         return dataset
+
+    def decode(
+            self,
+            sequences: np.array) -> List[str]:
+        """Return decode texts from word id sequences.
+
+        Args:
+            sequences (np.array): word id sequences.
+
+        Return:
+            texts (List[str]): decoded text.
+
+        """
+        return self.tokenizer.sequences_to_texts(sequences)

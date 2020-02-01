@@ -4,7 +4,7 @@ from typing import Any, List
 import functools
 import tensorflow as tf
 import numpy as np
-from model.base import KerasImageClassifierBase
+from model.base import KerasClassifierBase
 
 
 def drop_connect(inputs, is_training, survival_prob):
@@ -177,7 +177,7 @@ class MBConvBlock(tf.keras.layers.Layer):
         return x
 
 
-class EfficientNet(KerasImageClassifierBase):
+class EfficientNet(KerasClassifierBase):
     """EfficientNet implementation bottleneck and pre-ctivation style.
 
     Args:

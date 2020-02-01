@@ -38,7 +38,7 @@ It includes model and dataset and preprocesssing section.
 
 Model configuration is diffrent allowed parameters for model.
 
-Model object extends [KerasImageClassifierBase](/model/base.py#L79) can be set number of epoch, learning rate, etc.
+Model object extends [KerasClassifierBase](/model/base.py#L79) can be set number of epoch, learning rate, etc.
 
 ```yaml
 model:
@@ -92,7 +92,7 @@ It means that download and decompose projects are running with name parameter, b
 ## Workflow for your own task
 This framework can apply to specific model, specific dataset and specific task.
 
-For example, when you use to image classification task with your custom model,you implement model class extends [KerasImageClassifierBase](/model/base.py#L79) class.
+For example, when you use to image classification task with your custom model,you implement model class extends [KerasClassifierBase](/model/base.py#L79) class.
 
 This class is implemented to learn image classification with `model` property, 
 which constructed by Keras functional API.

@@ -12,6 +12,7 @@ class RNNLM(KerasLanguageModelBase):
             self,
             hidden_nums: int = 512,
             embedding_dim: int = 100,
+            weight_decay: float = 1e-4,
             **kwargs: Any) -> None:
         """Intialize parameter and build model."""
         super(RNNLM, self).__init__(**kwargs)
@@ -25,12 +26,14 @@ class RNNLM(KerasLanguageModelBase):
                             hidden_nums,
                             return_sequences=True,
                             stateful=False,
-                            recurrent_initializer='glorot_uniform')
+                            recurrent_initializer='glorot_uniform',
+                            kernel_regularizer=tf.keras.regularizers.l2(weight_decay))
 
         self._dense = tf.keras.layers.Dense(
                                         self.dataset.vocab_size,
                                         activation=tf.nn.softmax,
-                                        kernel_initializer='he_normal')
+                                        kernel_initializer='he_normal',
+                                        kernel_regularizer=tf.keras.regularizers.l2(weight_decay))
 
         # build model
         inputs = tf.keras.Input((self.dataset.seq_length, ))

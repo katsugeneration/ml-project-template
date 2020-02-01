@@ -2,10 +2,10 @@
 # Licensed under the MIT License.
 from typing import Any, List
 import tensorflow as tf
-from model.base import KerasImageClassifierBase
+from model.base import KerasClassifierBase
 
 
-class ResNet101(KerasImageClassifierBase):
+class ResNet101(KerasClassifierBase):
     """ResNet implementation bottleneck and pre-ctivation style with 101 layers."""
 
     def __init__(

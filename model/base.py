@@ -154,13 +154,22 @@ class KerasClassifierBase(KerasModelBase):
 
     def setup(self) -> None:
         """Set optimizer to model."""
+        config = {
+                    'learning_rate': self.lr,
+                    'momentum': self.momentum,
+                    'clipnorm': self.clipnorm
+                }
+
+        if self.optimizer_name == 'adam':
+            config = {
+                        'learning_rate': self.lr,
+                        'beta_1': self.momentum,
+                        'clipnorm': self.clipnorm
+                    }
+
         optimizer = tf.keras.optimizers.get({
             'class_name': self.optimizer_name,
-            'config': {
-                'learning_rate': self.lr,
-                'momentum': self.momentum,
-                'clipnorm': self.clipnorm
-                }})
+            'config': config})
 
         if self.restore_path is not None:
             self.load(self.restore_path)
