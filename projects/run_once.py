@@ -3,6 +3,8 @@
 from typing import Any, List, Optional
 import re
 import importlib
+import queue
+from multiprocessing import Process, Queue
 import luigi
 import mlflow
 import yaml
@@ -63,6 +65,9 @@ class RunOnceProject(ProjectBase):
         """Dependency projects."""
         return [self.before_project]
 
+    def __run_once(self, c, results):
+        results.put(c.run(self.model, self.dataset, self.model_params, self.dataset_params, self.artifact_directory))
+
     def _run(self) -> None:
         # update parameter from local data.
         before_artifact_directory = self.before_project.artifact_directory if self.before_project is not None else None
@@ -84,7 +89,19 @@ class RunOnceProject(ProjectBase):
         module = importlib.import_module('runner.' + self.runner)
         class_name = "".join(s[:1].upper() + s[1:] for s in self.runner.split('_'))
         c = getattr(module, class_name)
-        history = c().run(self.model, self.dataset, self.model_params, self.dataset_params, self.artifact_directory)
+
+        history = None
+        while history is None:
+            results: Queue = Queue()
+            p = Process(target=self.__run_once, args=(c(), results))
+            p.start()
+            p.join()
+
+            try:
+                history = results.get(False)
+            except queue.Empty:
+                history = None
+                pass
 
         # save to mlflow
         for k in history:

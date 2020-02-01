@@ -80,16 +80,26 @@ class KerasModelBase(ModelBase):
 class TerminateOnValNaN(tf.keras.callbacks.Callback):
     """Callback that terminates training when a NaN validation loss is encountered."""
 
+    def on_batch_end(self, batch, logs=None):
+        logs = logs or {}
+        loss = logs.get('loss')
+        if loss is not None:
+            if np.isnan(loss) or np.isinf(loss) or loss >= 100000:
+                print('Batch %d: Invalid loss, terminating training' % (batch))
+                self.model.stop_training = True
+                raise Exception()
+
     def on_epoch_end(self, batch, logs=None):
         logs = logs or {}
         loss = logs.get('val_loss')
         if loss is not None:
-            if np.isnan(loss) or np.isinf(loss):
+            if np.isnan(loss) or np.isinf(loss) or loss >= 100000:
                 print('Batch %d: Invalid loss, terminating training' % (batch))
                 self.model.stop_training = True
+                raise Exception()
 
 
-class KerasImageClassifierBase(KerasModelBase):
+class KerasClassifierBase(KerasModelBase):
     """Keras image classification model base.
 
     Args:
@@ -122,7 +132,7 @@ class KerasImageClassifierBase(KerasModelBase):
             restore_path: Union[str, pathlib.Path] = None,
             **kwargs: Any) -> None:
         """Intialize parameter and build model."""
-        super(KerasImageClassifierBase, self).__init__(**kwargs)
+        super(KerasClassifierBase, self).__init__(**kwargs)
         self.dataset = dataset
         self.epochs = epochs
         self.optimizer_name = optimizer_name
@@ -134,6 +144,13 @@ class KerasImageClassifierBase(KerasModelBase):
         self.decay = decay
         self.weighted_loss = weighted_loss
         self.restore_path = restore_path
+
+    def _loss(self, label, pred):
+        return tf.keras.losses.categorical_crossentropy(label, pred)
+
+    @property
+    def metrics(self):
+        return [tf.keras.metrics.Accuracy()]
 
     def setup(self) -> None:
         """Set optimizer to model."""
@@ -150,8 +167,8 @@ class KerasImageClassifierBase(KerasModelBase):
 
         self.model.compile(
             optimizer=optimizer,
-            loss='categorical_crossentropy',
-            metrics=['accuracy'])
+            loss=self._loss,
+            metrics=self.metrics)
 
     def train(self) -> Dict[str, List[Any]]:
         """Training model.
@@ -162,7 +179,6 @@ class KerasImageClassifierBase(KerasModelBase):
         """
         callbacks: List = [
             TerminateOnValNaN(),
-            tf.keras.callbacks.TerminateOnNaN(),
             tf.keras.callbacks.TensorBoard(write_graph=False, histogram_freq=1)
         ]
         if self.lr_step_decay:
@@ -220,7 +236,7 @@ class KerasImageClassifierBase(KerasModelBase):
         self.model.load_weights(str(path))
 
 
-class KerasImageSegmentationBase(KerasImageClassifierBase):
+class KerasImageSegmentationBase(KerasClassifierBase):
     """Keras image segmentation model base.
 
     Args:
@@ -319,3 +335,20 @@ class KerasImageSegmentationBase(KerasImageClassifierBase):
                         max_queue_size=100,
                         callbacks=callbacks)
         return history.history
+
+
+class KerasLanguageModelBase(KerasClassifierBase):
+    """Keras language model base."""
+
+    def _loss(self, label, pred):
+        mask = tf.math.logical_not(tf.math.equal(label, 0))
+        loss = tf.keras.losses.sparse_categorical_crossentropy(label, pred)
+
+        mask = tf.cast(mask, dtype=loss.dtype)
+        loss *= mask
+
+        return loss
+
+    @property
+    def metrics(self):
+        return [tf.keras.metrics.SparseCategoricalAccuracy()]

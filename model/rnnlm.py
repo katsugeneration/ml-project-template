@@ -2,10 +2,10 @@
 # Licensed under the MIT License.
 from typing import Any, List
 import tensorflow as tf
-from model.base import KerasImageClassifierBase
+from model.base import KerasLanguageModelBase
 
 
-class RNNLM(KerasImageClassifierBase):
+class RNNLM(KerasLanguageModelBase):
     """RNN Language Model."""
 
     def __init__(
@@ -29,6 +29,7 @@ class RNNLM(KerasImageClassifierBase):
 
         self._dense = tf.keras.layers.Dense(
                                         self.dataset.vocab_size,
+                                        activation=tf.nn.softmax,
                                         kernel_initializer='he_normal')
 
         # build model

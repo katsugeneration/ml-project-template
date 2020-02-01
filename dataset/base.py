@@ -440,7 +440,7 @@ class BinaryTextDataset(TextDatasetBase):
         sequences = self.tokenizer.texts_to_sequences(_train)
         sequences = tf.keras.preprocessing.sequence.pad_sequences(sequences, padding='post', maxlen=self.seq_length+1)
         sequences = np.array(sequences)
-        return sequences[:, :-1], tf.keras.utils.to_categorical(sequences[:, 1:], num_classes=self.vocab_size)
+        return sequences[:, :-1], sequences[:, 1:]
 
     def training_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
         """Return training dataset.
@@ -469,7 +469,7 @@ class BinaryTextDataset(TextDatasetBase):
         sequences = self.tokenizer.texts_to_sequences(_test)
         sequences = tf.keras.preprocessing.sequence.pad_sequences(sequences, padding='post', maxlen=self.seq_length+1)
         sequences = np.array(sequences)
-        return sequences[:, :-1], tf.keras.utils.to_categorical(sequences[:, 1:], num_classes=self.vocab_size)
+        return sequences[:, :-1], sequences[:, 1:]
 
     def eval_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
         """Return evaluation dataset.
