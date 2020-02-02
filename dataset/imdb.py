@@ -10,7 +10,6 @@ class ImdbDataset(BinaryTextDataset):
 
     def __init__(
             self,
-            data_normalize_style: str = 'standardization',
             **kwargs: Any) -> None:
         """Load data and setup preprocessing."""
         super(ImdbDataset, self).__init__(**kwargs)
