@@ -10,6 +10,7 @@ from sklearn.metrics import confusion_matrix
 from runner.base import RunnerBase
 from dataset.base import DatasetBase
 from dataset.imdb import ImdbDataset
+from dataset.ptb import PtbDataset
 from model.base import ModelBase
 from model.rnnlm import RNNLM
 
@@ -21,6 +22,7 @@ class LanguageModelTrainer(RunnerBase):
         """Initilize parameters."""
         self.datasets = {
             'imdb': ImdbDataset,
+            'ptb': PtbDataset,
         }
 
         self.models = {

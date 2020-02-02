@@ -29,6 +29,8 @@ class PtbDataset(BinaryTextDataset):
 
 
 def download(
+        artifact_directory: pathlib.Path = None,
+        before_artifact_directory: pathlib.Path = None,
         path: str = None) -> None:
     """Download pptb text data from github.
 
