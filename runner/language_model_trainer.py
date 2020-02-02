@@ -50,7 +50,7 @@ class LanguageModelTrainer(RunnerBase):
         # save results
         (x_test, y_test) = dataset.eval_data()
         y_pred = model.model.predict(x_test[:100])
-        y_pred = np.argmax(y_pred, axis=1)
+        y_pred = np.argmax(y_pred, axis=2)
         print(dataset.decode(y_test[:1]))
         print(dataset.decode(y_pred[:1]))
 
