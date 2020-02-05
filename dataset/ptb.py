@@ -10,38 +10,39 @@ TRAIN_FILE = 'ptb.train.txt'
 EVAL_FILE = 'ptb.valid.txt'
 TEST_FILE = 'ptb.test.txt'
 
-SAVE_PATH = pathlib.Path('/tmp/ptb')
-
 
 class PtbDataset(BinaryTextDataset):
     """Penn Tree Banl dataset loader."""
 
     def __init__(
             self,
+            path: pathlib.Path,
             **kwargs: Any) -> None:
-        """Load data and setup preprocessing."""
+        """Load data and setup preprocessing.
+
+        Args:
+            path (Path): file save path.
+
+        """
         super(PtbDataset, self).__init__(**kwargs)
 
-        with open(SAVE_PATH.joinpath(TRAIN_FILE), 'r', encoding='utf-8') as f:
+        with open(path.joinpath(TRAIN_FILE), 'r', encoding='utf-8') as f:
             self.x_train = [line.strip() for line in f]
-        with open(SAVE_PATH.joinpath(EVAL_FILE), 'r', encoding='utf-8') as f:
+        with open(path.joinpath(EVAL_FILE), 'r', encoding='utf-8') as f:
             self.x_test = [line.strip() for line in f]
 
 
 def download(
-        artifact_directory: pathlib.Path = None,
-        before_artifact_directory: pathlib.Path = None,
-        path: str = None) -> None:
+        artifact_directory: pathlib.Path,
+        before_artifact_directory: pathlib.Path = None) -> None:
     """Download pptb text data from github.
 
     Args:
-        path (str): file save path.
+        artifact_directory (Path): file save path.
+        before_artifact_directory (Path): non use.
 
     """
-    if path is None:
-        save_path = SAVE_PATH
-    else:
-        save_path = pathlib.Path(path)
+    save_path = artifact_directory
     save_path.mkdir(parents=True, exist_ok=True)
 
     for f in [TRAIN_FILE, EVAL_FILE, TEST_FILE]:
