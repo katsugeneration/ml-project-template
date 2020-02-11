@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 from typing import Any
 import tensorflow as tf
+import numpy as np
 from dataset.base import BinaryImageClassifierDataset
 
 
@@ -29,6 +30,11 @@ class Cifar10Dataset(BinaryImageClassifierDataset):
             x_train, x_test = x_train / 255.0, x_test / 255.0
         elif data_normalize_style == '-1to1':
             x_train, x_test = (x_train - 127.5) / 127.5, (x_test - 127.5) / 127.5
+        elif data_normalize_style == 'standardization':
+            mean = np.mean(x_train, axis=(0, 1, 2))
+            std = np.std(x_train, axis=(0, 1, 2))
+            x_train = (x_train - mean) / std
+            x_test = (x_test - mean) / std
         else:
             raise ValueError('Data normaliztion style: {} is not supported.'.format(data_normalize_style))
 
