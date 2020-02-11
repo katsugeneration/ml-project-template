@@ -150,7 +150,7 @@ class KerasClassifierBase(KerasModelBase):
 
     @property
     def metrics(self):
-        return [tf.keras.metrics.Accuracy()]
+        return [tf.keras.metrics.CategoricalAccuracy()]
 
     def setup(self) -> None:
         """Set optimizer to model."""

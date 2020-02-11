@@ -20,7 +20,6 @@ class TestPspnet(object):
             frontend_name='resnet101')
         history = pspnet.train()
 
-        ok_('accuracy' in history)
         ok_('loss' in history)
 
     def test_train_gdl(self):
@@ -32,5 +31,4 @@ class TestPspnet(object):
             generarized_dice_loss={'alpha': 0.01})
         history = pspnet.train()
 
-        ok_('accuracy' in history)
         ok_('loss' in history)

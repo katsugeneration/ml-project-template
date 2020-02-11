@@ -18,5 +18,4 @@ class TestEfficientNet(object):
                     block_nums=1)
         history = efficientnet.train()
 
-        ok_('accuracy' in history)
         ok_('loss' in history)

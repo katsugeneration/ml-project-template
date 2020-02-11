@@ -21,5 +21,4 @@ class TestFCNN(object):
                     dropout_rate=0.8)
         history = fcnn.train()
 
-        ok_('accuracy' in history)
         ok_('loss' in history)

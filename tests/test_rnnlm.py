@@ -26,7 +26,6 @@ class TestRNNLM(object):
                     embedding_dim=16)
         history = rnnlm.train()
 
-        ok_('accuracy' in history)
         ok_('loss' in history)
 
     def test_train_with_short_sequences(self):
@@ -39,7 +38,6 @@ class TestRNNLM(object):
                     embedding_dim=16)
         history = rnnlm.train()
 
-        ok_('accuracy' in history)
         ok_('loss' in history)
 
     def test_mask(self):

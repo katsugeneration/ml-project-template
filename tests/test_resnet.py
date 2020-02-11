@@ -34,7 +34,6 @@ class TestResnet(object):
                     epochs=1)
         history = resnet.train()
 
-        ok_('accuracy' in history)
         ok_('loss' in history)
         
     def test_train_usext(self):
@@ -45,5 +44,4 @@ class TestResnet(object):
                     use_xt=True)
         history = resnet.train()
 
-        ok_('accuracy' in history)
         ok_('loss' in history)
