@@ -15,6 +15,7 @@ from dataset.cifar100 import Cifar100Dataset
 from dataset.mnist_from_raw import MnistFromRawDataset
 from model.base import ModelBase
 from model.fcnn import FCNNClassifier
+from model.cnn import ConvolutionalNet
 from model.resnet import ResNet
 from model.resnet101 import ResNet101
 from model.efficientnet import EfficientNet
@@ -34,6 +35,7 @@ class ImageRecognitionTrainer(RunnerBase):
 
         self.models = {
             'fcnn': FCNNClassifier,
+            'cnn': ConvolutionalNet,
             'resnet': ResNet,
             'resnet101': ResNet101,
             'efficientnet': EfficientNet,
