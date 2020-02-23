@@ -1,6 +1,7 @@
 # Copyright 2019 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
 import pathlib
+import zipfile
 import requests
 import tqdm
 from dataset.base import DirectoryObjectDitectionDataset
@@ -53,3 +54,18 @@ def download(
                 w.write(buf)
                 pbar.update(len(buf))
         res.close()
+
+
+def unzip(
+        artifact_directory: pathlib.Path,
+        before_artifact_directory: pathlib.Path) -> None:
+    """Unzip MSCOCO image and annotation data from cocodataset.org.
+
+    Args:
+        artifact_directory (Path): unzip file save path.
+        before_artifact_directory (Path): zip file save path.
+
+    """
+    for f in before_artifact_directory.glob('*.zip'):
+        with zipfile.ZipFile(f) as zip:
+            zip.extractall(artifact_directory)
