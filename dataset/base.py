@@ -137,6 +137,38 @@ class BinaryImageClassifierDataset(ImageClassifierDatasetBase):
         return self.eval_data_gen.flow(self.x_test, y=y_test, batch_size=self.batch_size)
 
 
+class ObjectDitectionDatasetBase(ImageClassifierDatasetBase):
+    """Object detection dataset loader base class."""
+
+    pass
+
+
+class DirectoryObjectDitectionDataset(ObjectDitectionDatasetBase):
+    """Directory loaded detection dataset.
+
+    Args:
+        train_image_directory (str): path to training image directory.
+        train_label_directory (str): path to training label directory.
+        test_image_directory (str): path to test image directory.
+        test_image_directory (str): path to test label directory.
+
+    """
+
+    def __init__(
+            self,
+            train_image_directory: str,
+            train_label_directory: str,
+            test_image_directory: str,
+            test_label_directory: str,
+            **kwargs: Any) -> None:
+        """Initilize params."""
+        super(DirectoryObjectDitectionDataset, self).__init__(**kwargs)
+        self.train_image_directory = pathlib.Path(train_image_directory)
+        self.train_label_directory = pathlib.Path(train_label_directory)
+        self.test_image_directory = pathlib.Path(test_image_directory)
+        self.test_label_directory = pathlib.Path(test_label_directory)
+
+
 class ImageSegmentationDatasetBase(ImageClassifierDatasetBase):
     """Image segmentation dataset loader base class."""
 
