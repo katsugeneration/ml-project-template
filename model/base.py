@@ -245,6 +245,12 @@ class KerasClassifierBase(KerasModelBase):
         self.model.load_weights(str(path))
 
 
+class KerasObjectDetectionBase(KerasClassifierBase):
+    """Keras object detection model base."""
+
+    pass
+
+
 class KerasImageSegmentationBase(KerasClassifierBase):
     """Keras image segmentation model base.
 

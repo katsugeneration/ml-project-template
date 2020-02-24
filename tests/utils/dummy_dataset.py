@@ -4,7 +4,7 @@
 from typing import Any, Union, Generator, Tuple
 import tensorflow as tf
 import numpy as np
-from dataset.base import BinaryImageClassifierDataset, ImageSegmentationDatasetBase, BinaryTextDataset
+from dataset.base import BinaryImageClassifierDataset, ObjectDitectionDatasetBase, ImageSegmentationDatasetBase, BinaryTextDataset
 
 
 class DummyDataset(BinaryImageClassifierDataset):
@@ -23,6 +23,23 @@ class DummyDataset(BinaryImageClassifierDataset):
         self.y_train = np.array([0, 1] * (self.batch_size // 2))
         self.x_test = np.zeros((self.batch_size, ) + self.input_shape)
         self.y_test = np.array([0, 1] * (self.batch_size // 2))
+
+
+class OjbjectDetectionDummyDataset(ObjectDitectionDatasetBase):
+    """Dummy dataset class for test."""
+
+    input_shape = (32, 32)
+    category_nums = 2
+
+    def __init__(
+            self,
+            data: np.array,
+            **kwargs: Any) -> None:
+        """Load data and setup preprocessing."""
+        super(OjbjectDetectionDummyDataset, self).__init__(**kwargs)
+
+        self.x_train = data
+        self.x_test = data
 
 
 class SegmentationDummyDataset(ImageSegmentationDatasetBase):
