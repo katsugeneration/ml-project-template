@@ -248,7 +248,9 @@ class KerasClassifierBase(KerasModelBase):
 class KerasObjectDetectionBase(KerasClassifierBase):
     """Keras object detection model base."""
 
-    pass
+    @property
+    def metrics(self):
+        return []
 
 
 class KerasImageSegmentationBase(KerasClassifierBase):

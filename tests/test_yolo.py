@@ -8,6 +8,10 @@ from tests.utils.dummy_dataset import OjbjectDetectionDummyDataset
 
 class TestYoloV2(object):
     def test_init(self):
-        yolo = YoloV2(dataset=OjbjectDetectionDummyDataset(np.array([])))
+        yolo = YoloV2(dataset=OjbjectDetectionDummyDataset())
         eq_(yolo.model.outputs[0].shape.as_list(), [None, 13, 13, 5 * (2 + 5)])
 
+    def test_train(self):
+        yolo = YoloV2(dataset=OjbjectDetectionDummyDataset())
+        history = yolo.train()
+        ok_('loss' in history)
