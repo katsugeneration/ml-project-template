@@ -6,6 +6,7 @@ import tensorflow as tf
 import numpy as np
 import scipy.ndimage.morphology as morphology
 from dataset.base import ImageClassifierDatasetBase
+from model.utils.losses import MaskedSparseCategoricalCrossentropy
 
 
 class ModelBase(object):
@@ -357,14 +358,9 @@ class KerasImageSegmentationBase(KerasClassifierBase):
 class KerasLanguageModelBase(KerasClassifierBase):
     """Keras language model base."""
 
-    def _loss(self, label, pred):
-        mask = tf.math.logical_not(tf.math.equal(label, 0))
-        loss = tf.keras.losses.sparse_categorical_crossentropy(label, pred)
-
-        mask = tf.cast(mask, dtype=loss.dtype)
-        loss *= mask
-
-        return loss
+    @property
+    def _loss(self):
+        return MaskedSparseCategoricalCrossentropy()
 
     @property
     def metrics(self):
