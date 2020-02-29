@@ -2,11 +2,7 @@
 # Licensed under the MIT License.
 from typing import Dict, List, Any
 import pathlib
-from matplotlib import pyplot as plt
-import seaborn
 import numpy as np
-import pandas as pd
-from sklearn.metrics import confusion_matrix
 from runner.base import RunnerBase
 from dataset.base import DatasetBase
 from dataset.imdb import ImdbDataset
@@ -51,9 +47,17 @@ class LanguageModelTrainer(RunnerBase):
 
         # save results
         (x_test, y_test) = dataset.eval_data()
-        y_pred = model.model.predict(x_test[:100])
-        y_pred = np.argmax(y_pred, axis=2)
-        print(dataset.decode(y_test[:1]))
-        print(dataset.decode(y_pred[:1]))
+
+        end = dataset.decode(['<E>'])[0]
+        for i in range(10):
+            predicts = list(x_test[i][:5])
+            ret = predicts[-1]
+            while ret != end and len(predicts) != dataset.seq_length:
+                sequences = dataset.uniformed_sequences([predicts])
+                y_pred = model.model.predict(sequences)
+                ret = np.random.choice(range(dataset.vocab_size), p=y_pred[0][len(predicts)-1])
+                predicts.append(ret)
+            print(dataset.decode([y_test[i]]))
+            print(dataset.decode([predicts[1:]]))
 
         return history

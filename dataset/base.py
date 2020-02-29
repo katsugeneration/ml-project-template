@@ -470,7 +470,7 @@ class BinaryTextDataset(TextDatasetBase):
         _train = ['<S> ' + line + ' <E>' for line in self.x_train]
         self.tokenizer.fit_on_texts(_train)
         sequences = self.tokenizer.texts_to_sequences(_train)
-        sequences = tf.keras.preprocessing.sequence.pad_sequences(sequences, padding='post', maxlen=self.seq_length+1)
+        sequences = self.uniformed_sequences(sequences, length=self.seq_length+1)
         sequences = np.array(sequences)
         return sequences[:, :-1], sequences[:, 1:]
 
@@ -499,7 +499,7 @@ class BinaryTextDataset(TextDatasetBase):
         """
         _test = ['<S> ' + line + ' <E>' for line in self.x_test]
         sequences = self.tokenizer.texts_to_sequences(_test)
-        sequences = tf.keras.preprocessing.sequence.pad_sequences(sequences, padding='post', maxlen=self.seq_length+1)
+        sequences = self.uniformed_sequences(sequences, length=self.seq_length+1)
         sequences = np.array(sequences)
         return sequences[:, :-1], sequences[:, 1:]
 
@@ -517,6 +517,24 @@ class BinaryTextDataset(TextDatasetBase):
                     .batch(self.batch_size, drop_remainder=False)
         return dataset
 
+    def uniformed_sequences(
+            self,
+            sequences: np.array,
+            length: Optional[int] = None) -> np.array:
+        """Return decode texts from word id sequences.
+
+        Args:
+            sequences (np.array): word id sequences.
+            length (int): referenced length. default is self.seq_length.
+
+        Return:
+            padded_sequences (np.array]): word id sequences uniformed length.
+
+        """
+        if length is None:
+            length = self.seq_length
+        return tf.keras.preprocessing.sequence.pad_sequences(sequences, padding='post', truncating='post', maxlen=length)
+
     def decode(
             self,
             sequences: np.array) -> List[str]:
@@ -530,3 +548,17 @@ class BinaryTextDataset(TextDatasetBase):
 
         """
         return self.tokenizer.sequences_to_texts(sequences)
+
+    def encode(
+            self,
+            texts: List[str]) -> np.array:
+        """Return encode word id sequences from texts.
+
+        Args:
+            texts (List[str]): decoded text.
+
+        Return:
+            sequences (np.array): word id sequences.
+
+        """
+        return self.tokenizer.texts_to_sequences(texts)
