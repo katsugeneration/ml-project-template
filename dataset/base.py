@@ -138,7 +138,13 @@ class BinaryImageClassifierDataset(ImageClassifierDatasetBase):
 
 
 class ObjectDitectionDatasetBase(ImageClassifierDatasetBase):
-    """Object detection dataset loader base class."""
+    """Object detection dataset loader base class.
+
+    Note:
+        label is Ground truth boxes tensor with shape (num_true_boxes, 5)
+        containing box relative x_center, y_center, width, height, and class.
+
+    """
 
     pass
 
@@ -148,25 +154,90 @@ class DirectoryObjectDitectionDataset(ObjectDitectionDatasetBase):
 
     Args:
         train_image_directory (str): path to training image directory.
-        train_label_directory (str): path to training label directory.
+        train_label_path (str): path to training label file path.
         test_image_directory (str): path to test image directory.
-        test_image_directory (str): path to test label directory.
+        test_label_path (str): path to test label file path.
 
     """
 
     def __init__(
             self,
             train_image_directory: str,
-            train_label_directory: str,
+            train_label_path: str,
             test_image_directory: str,
-            test_label_directory: str,
+            test_label_path: str,
             **kwargs: Any) -> None:
         """Initilize params."""
         super(DirectoryObjectDitectionDataset, self).__init__(**kwargs)
         self.train_image_directory = pathlib.Path(train_image_directory)
-        self.train_label_directory = pathlib.Path(train_label_directory)
+        self.train_label_path = pathlib.Path(train_label_path)
         self.test_image_directory = pathlib.Path(test_image_directory)
-        self.test_label_directory = pathlib.Path(test_label_directory)
+        self.test_label_path = pathlib.Path(test_label_path)
+
+        self.x_train: List[pathlib.Path]
+        self.x_test: List[pathlib.Path]
+        self.y_train: List[List]
+        self.y_test: List[List]
+
+    def _data_generator(
+            self,
+            image_paths: List[pathlib.Path],
+            labels: List[List],
+            repeat: bool = True) -> Generator:
+        """Return training dataset.
+
+        Args:
+            image_paths (List[pathlib.Path]): image path list.
+            labels (List[List]]): label lists containing box absolute x_center, y_center, width, height, and class.
+            repeat (bool): whether or not to repeat data generate.
+
+        Return:
+            dataset (Generator): dataset generator
+
+        """
+        def _resize_and_relative(
+                image: Image,
+                box: List[List]) -> Tuple[np.array, List[List]]:
+            width, height = image.width, image.height
+            _box = np.array(box)
+
+            _box[:, 0] /= float(width)
+            _box[:, 2] /= float(width)
+            _box[:, 1] /= float(height)
+            _box[:, 3] /= float(height)
+
+            image = image.resize(self.input_shape[:2], Image.BILINEAR)
+            _image = np.asarray(image) / 255.0
+            return _image, box
+
+        def _generate(image_paths, labels) -> Generator:
+            for image_path, label in zip(image_paths, labels):
+                image = Image.open(image_path)
+                yield _resize_and_relative(image, label)
+
+        if repeat:
+            while True:
+                return _generate(image_paths, labels)
+        else:
+            return _generate(image_paths, labels)
+
+    def training_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
+        """Return training dataset.
+
+        Return:
+            dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
+
+        """
+        return self._data_generator(self.x_train, self.y_train, repeat=True)
+
+    def eval_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
+        """Return test dataset.
+
+        Return:
+            dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
+
+        """
+        return self._data_generator(self.x_test, self.y_test, repeat=False)
 
 
 class ImageSegmentationDatasetBase(ImageClassifierDatasetBase):
