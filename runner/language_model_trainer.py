@@ -4,14 +4,14 @@ from typing import Dict, List, Any
 import pathlib
 import numpy as np
 from runner.base import RunnerBase
-from dataset.base import DatasetBase
+from dataset.base import BinaryTextDataset
 from dataset.imdb import ImdbDataset
 from dataset.ptb import PtbDataset
-from model.base import ModelBase
+from model.base import KerasLanguageModelBase
 from model.rnnlm import RNNLM
 
 
-class LanguageModelTrainer(RunnerBase):
+class LanguageModelTrainer(RunnerBase[BinaryTextDataset, KerasLanguageModelBase]):
     """Image recognition task trainning runner."""
 
     def __init__(self):
@@ -27,14 +27,14 @@ class LanguageModelTrainer(RunnerBase):
 
     def _run(
             self,
-            dataset: DatasetBase,
-            model: ModelBase,
+            dataset: BinaryTextDataset,
+            model: KerasLanguageModelBase,
             log_path: pathlib.Path) -> Dict[str, List[Any]]:
         """Run task.
 
         Args:
-            dataset (DatasetBase): dataset object.
-            model (ModelBase): model object.
+            dataset (BinaryTextDataset): dataset object.
+            model (KerasLanguageModelBase): model object.
             log_path (pathlib.Path): log path object.
 
         Return:

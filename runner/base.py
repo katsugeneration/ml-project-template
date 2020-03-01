@@ -1,12 +1,15 @@
 # Copyright 2019 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Generic, TypeVar
 import pathlib
 from dataset.base import DatasetBase
 from model.base import ModelBase
 
+T = TypeVar('T', bound=DatasetBase)
+V = TypeVar('V', bound=ModelBase)
 
-class RunnerBase(object):
+
+class RunnerBase(Generic[T, V]):
     """Task runner base class."""
 
     def __init__(self):
@@ -52,8 +55,8 @@ class RunnerBase(object):
 
     def _run(
             self,
-            dataset: DatasetBase,
-            model: ModelBase,
+            dataset: T,
+            model: V,
             log_path: pathlib.Path) -> Dict[str, List[Any]]:
         """Run task.
 
