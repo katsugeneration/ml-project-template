@@ -1,9 +1,9 @@
 from typing import Any
 import tensorflow as tf
-from model.base import KerasClassifierBase
+from model.base import KerasImageClassifierBase
 
 
-class FCNNClassifier(KerasClassifierBase):
+class FCNNClassifier(KerasImageClassifierBase):
     """Fully connected neural network classifier.
 
     Args:

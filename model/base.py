@@ -1,12 +1,14 @@
 # Copyright 2019 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
-from typing import Tuple, List, Dict, Any, Union, Optional
+from typing import Tuple, List, Dict, Any, Union, Optional, Generic, TypeVar
 import pathlib
 import tensorflow as tf
 import numpy as np
 import scipy.ndimage.morphology as morphology
-from dataset.base import ImageClassifierDatasetBase
+from dataset.base import DatasetBase, ImageClassifierDatasetBase, ObjectDitectionDatasetBase, TextDatasetBase, ImageSegmentationDatasetBase
 from model.utils.losses import MaskedSparseCategoricalCrossentropy
+
+T = TypeVar('T', bound=DatasetBase)
 
 
 class ModelBase(object):
@@ -100,8 +102,8 @@ class TerminateOnValNaN(tf.keras.callbacks.Callback):
                 raise Exception()
 
 
-class KerasClassifierBase(KerasModelBase):
-    """Keras image classification model base.
+class KerasClassifierBase(KerasModelBase, Generic[T]):
+    """Keras classification model base.
 
     Args:
         dataset (ImageClassifierDatasetBase): dataset object.
@@ -120,7 +122,7 @@ class KerasClassifierBase(KerasModelBase):
 
     def __init__(
             self,
-            dataset: ImageClassifierDatasetBase,
+            dataset: T,
             epochs: int = 5,
             optimizer_name: str = "sgd",
             lr: float = 0.1,
@@ -246,7 +248,13 @@ class KerasClassifierBase(KerasModelBase):
         self.model.load_weights(str(path))
 
 
-class KerasObjectDetectionBase(KerasClassifierBase):
+class KerasImageClassifierBase(KerasClassifierBase[ImageClassifierDatasetBase]):
+    """Keras image classification model base."""
+
+    pass
+
+
+class KerasObjectDetectionBase(KerasClassifierBase[ObjectDitectionDatasetBase]):
     """Keras object detection model base."""
 
     @property
@@ -254,7 +262,7 @@ class KerasObjectDetectionBase(KerasClassifierBase):
         return []
 
 
-class KerasImageSegmentationBase(KerasClassifierBase):
+class KerasImageSegmentationBase(KerasClassifierBase[ImageSegmentationDatasetBase]):
     """Keras image segmentation model base.
 
     Args:
@@ -355,7 +363,7 @@ class KerasImageSegmentationBase(KerasClassifierBase):
         return history.history
 
 
-class KerasLanguageModelBase(KerasClassifierBase):
+class KerasLanguageModelBase(KerasClassifierBase[TextDatasetBase]):
     """Keras language model base."""
 
     @property

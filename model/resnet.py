@@ -2,11 +2,11 @@
 # Licensed under the MIT License.
 from typing import Any, List
 import tensorflow as tf
-from model.base import KerasClassifierBase
+from model.base import KerasImageClassifierBase
 from model.se_block import SEBlock
 
 
-class ResNet(KerasClassifierBase):
+class ResNet(KerasImageClassifierBase):
     """ResNet implementation bottleneck and pre-ctivation style.
 
     Args:

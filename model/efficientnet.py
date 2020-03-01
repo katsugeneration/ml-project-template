@@ -1,10 +1,9 @@
 # Copyright 2019 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
-from typing import Any, List
-import functools
+from typing import Any, List, Tuple
 import tensorflow as tf
 import numpy as np
-from model.base import KerasClassifierBase
+from model.base import KerasImageClassifierBase
 
 
 def drop_connect(inputs, is_training, survival_prob):
@@ -128,6 +127,15 @@ class MBConvBlock(tf.keras.layers.Layer):
             use_bias=False)
         self._bn2 = tf.keras.layers.BatchNormalization()
 
+        if not (all(s == 1 for s in self.strides) and self.input_filters == self.output_filters):
+            self._skip_conv = self.conv_cls(
+                filters=filters,
+                kernel_size=[1, 1],
+                strides=self.strides,
+                kernel_initializer=self._kernel_initializer,
+                padding='same',
+                use_bias=False)
+
     def _call_se(self, input_tensor):
         """Call Squeeze and Excitation layer.
         Args:
@@ -172,13 +180,19 @@ class MBConvBlock(tf.keras.layers.Layer):
         # ops correctly.
         x = tf.identity(x)
         if all(s == 1 for s in self.strides) and self.input_filters == self.output_filters:
-            x = drop_connect(x, training, survival_prob)
+            x = tf.keras.layers.Dropout(1 - survival_prob, noise_shape=(None, 1, 1, 1))(x, training=training)
             x = tf.add(x, inputs)
+        else:
+            _shortcut = self._skip_conv(inputs)
+            x = tf.keras.layers.Dropout(1 - survival_prob, noise_shape=(None, 1, 1, 1))(x, training=training)
+            x = tf.add(x, _shortcut)
         return x
 
 
-class EfficientNet(KerasClassifierBase):
+class EfficientNet(KerasImageClassifierBase):
     """EfficientNet implementation bottleneck and pre-ctivation style.
+
+    refference code is here https://github.com/tensorflow/tpu/tree/master/models/official/efficientnet.
 
     Args:
         weight_decay (float): L2 regurarization weight parameter.
@@ -191,6 +205,8 @@ class EfficientNet(KerasClassifierBase):
             width_coefficient: float = 1.0,
             depth_coefficient: float = 1.0,
             depth_divisor: int = 8,
+            strides: List[int] = [2, 1, 2, 2, 2, 1, 2, 1, 1],
+            resize_shape: Tuple[int, int] = (224, 224),
             min_depth: float = None,
             **kwargs: Any) -> None:
         """Intialize parameter and build model."""
@@ -199,7 +215,8 @@ class EfficientNet(KerasClassifierBase):
         self.channels = [32, 16, 24, 40, 80, 112, 192, 320, 1280]
         self.blocks = [1, 1, 2, 2, 3, 3, 4, 1, 1]
         self.kernels = [3, 3, 3, 5, 3, 5, 5, 3, 1]
-        self.strides = [2, 1, 2, 2, 2, 1, 2, 1, 1]
+        self.strides = strides
+        self.resize_shape = resize_shape
         self.dropout_rate = 0.2
         self.survival_prob = 0.8
         self._kernel_initializer = tf.keras.initializers.he_normal()
@@ -224,13 +241,14 @@ class EfficientNet(KerasClassifierBase):
             input_filters = self.round_filters(self.channels[i - 1], width_coefficient, depth_divisor, min_depth)
             output_filters = self.round_filters(self.channels[i], width_coefficient, depth_divisor, min_depth)
             kernel_size = self.kernels[i]
-            strides = (self.strides[i], self.strides[i])
+            _strides = (self.strides[i], self.strides[i])
+            expand_ratio = 6 if i != 1 else 1
 
             for j in range(self.blocks[i]):
                 if j > 0:
-                    strides = (1, 1)
+                    _strides = (1, 1)
                     input_filters = output_filters
-                self.hiddens.append(MBConvBlock(input_filters, output_filters, 6, kernel_size, strides, 0.25))
+                self.hiddens.append(MBConvBlock(input_filters, output_filters, expand_ratio, kernel_size, _strides, 0.25))
 
         self.end_conv = tf.keras.layers.Conv2D(
                                 self.round_filters(
@@ -262,7 +280,7 @@ class EfficientNet(KerasClassifierBase):
 
         # build model
         inputs = tf.keras.layers.Input(self.dataset.input_shape)
-        x = tf.image.resize(inputs, (224, 224))
+        x = tf.image.resize(inputs, self.resize_shape)
         x = self.start_conv(x)
         x = self.start_bn(x)
         x = tf.keras.layers.Activation(tf.nn.swish)(x)

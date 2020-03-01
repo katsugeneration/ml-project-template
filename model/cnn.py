@@ -1,11 +1,11 @@
 # Copyright 2019 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
-from typing import Any, List
+from typing import Any
 import tensorflow as tf
-from model.base import KerasClassifierBase
+from model.base import KerasImageClassifierBase
 
 
-class ConvolutionalNet(KerasClassifierBase):
+class ConvolutionalNet(KerasImageClassifierBase):
     """CNN implementation with batch normalization use VGG style.
 
     Args:
@@ -15,7 +15,7 @@ class ConvolutionalNet(KerasClassifierBase):
 
     def __init__(
             self,
-            block_nums: int = 3,
+            block_nums: int = 2,
             **kwargs: Any) -> None:
         """Intialize parameter and build model."""
         # initialize params
