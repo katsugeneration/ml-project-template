@@ -208,7 +208,7 @@ class DirectoryObjectDitectionDataset(ObjectDitectionDatasetBase):
 
             image = image.resize(self.input_shape[:2], Image.BILINEAR)
             _image = np.asarray(image) / 255.0
-            return _image, box
+            return _image, _box
 
         def _generate(image_paths, labels) -> Generator:
             for image_path, label in zip(image_paths, labels):

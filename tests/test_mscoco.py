@@ -4,6 +4,7 @@ import subprocess
 import shutil
 import pathlib
 from PIL import Image, ImageDraw
+import numpy as np
 from nose.tools import ok_, eq_
 from dataset.mscoco import MSCococDatectionDataset
 
@@ -40,6 +41,27 @@ class TestMSCococDatectionDataset(object):
         draw = ImageDraw.Draw(image)
         for box in dataset.y_train[0]:
             x, y, w, h, category = box
+            draw.rectangle(((x - w / 2, y - h / 2), (x + w / 2, y + h / 2)), outline='red', width=5)
+        image.save('test.png', "PNG")
+        subprocess.run(('open test.png'), shell=True)
+        pathlib.Path('test.png').unlink()
+
+    def test_draw_resized_bbox(self):
+        dataset = MSCococDatectionDataset(
+                train_image_directory=pathlib.Path(__file__).parent.joinpath('data/mscoco/image'),
+                train_label_path=pathlib.Path(__file__).parent.joinpath('data/mscoco/annotations.json'),
+                test_image_directory=pathlib.Path(__file__).parent.joinpath('data/mscoco/image'),
+                test_label_path=pathlib.Path(__file__).parent.joinpath('data/mscoco/annotations.json'))
+
+        image, boxes = next(dataset.training_data_generator())
+        image = Image.fromarray((image * 255.0).astype(np.uint8))
+        draw = ImageDraw.Draw(image)
+        for box in boxes:
+            x, y, w, h, category = box
+            x *= image.width
+            w *= image.width
+            y *= image.height
+            h *= image.height
             draw.rectangle(((x - w / 2, y - h / 2), (x + w / 2, y + h / 2)), outline='red', width=5)
         image.save('test.png', "PNG")
         subprocess.run(('open test.png'), shell=True)
