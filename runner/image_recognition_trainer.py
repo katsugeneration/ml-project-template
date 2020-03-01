@@ -8,12 +8,12 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import confusion_matrix
 from runner.base import RunnerBase
-from dataset.base import DatasetBase
+from dataset.base import BinaryImageClassifierDataset
 from dataset.mnist import MnistDataset
 from dataset.cifar10 import Cifar10Dataset
 from dataset.cifar100 import Cifar100Dataset
 from dataset.mnist_from_raw import MnistFromRawDataset
-from model.base import ModelBase
+from model.base import KerasClassifierBase
 from model.fcnn import FCNNClassifier
 from model.cnn import ConvolutionalNet
 from model.resnet import ResNet
@@ -21,7 +21,7 @@ from model.resnet101 import ResNet101
 from model.efficientnet import EfficientNet
 
 
-class ImageRecognitionTrainer(RunnerBase):
+class ImageRecognitionTrainer(RunnerBase[BinaryImageClassifierDataset, KerasClassifierBase]):
     """Image recognition task trainning runner."""
 
     def __init__(self):
@@ -43,14 +43,14 @@ class ImageRecognitionTrainer(RunnerBase):
 
     def _run(
             self,
-            dataset: DatasetBase,
-            model: ModelBase,
+            dataset: BinaryImageClassifierDataset,
+            model: KerasClassifierBase,
             log_path: pathlib.Path) -> Dict[str, List[Any]]:
         """Run task.
 
         Args:
-            dataset (DatasetBase): dataset object.
-            model (ModelBase): model object.
+            dataset (BinaryImageClassifierDataset): dataset object.
+            model (KerasClassifierBase): model object.
             log_path (pathlib.Path): log path object.
 
         Return:

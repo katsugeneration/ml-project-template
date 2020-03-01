@@ -6,12 +6,12 @@ import numpy as np
 from PIL import Image
 from runner.base import RunnerBase
 from runner import utils
-from dataset.base import DatasetBase, DirectoryImageSegmentationDataset
-from model.base import ModelBase
+from dataset.base import DirectoryImageSegmentationDataset, ImageSegmentationDatasetBase
+from model.base import KerasImageSegmentationBase
 from model.pspnet import PSPNet
 
 
-class ImageSegmentationTrainer(RunnerBase):
+class ImageSegmentationTrainer(RunnerBase[ImageSegmentationDatasetBase, KerasImageSegmentationBase]):
     """Image segmentation task trainning runner."""
 
     def __init__(self) -> None:
@@ -26,14 +26,14 @@ class ImageSegmentationTrainer(RunnerBase):
 
     def _run(
             self,
-            dataset: DatasetBase,
-            model: ModelBase,
+            dataset: ImageSegmentationDatasetBase,
+            model: KerasImageSegmentationBase,
             log_path: pathlib.Path) -> Dict[str, List[Any]]:
         """Run task.
 
         Args:
-            dataset (DatasetBase): dataset object.
-            model (ModelBase): model object.
+            dataset (ImageSegmentationDatasetBase): dataset object.
+            model (KerasImageSegmentationBase): model object.
             log_path (pathlib.Path): log path object.
 
         Return:
