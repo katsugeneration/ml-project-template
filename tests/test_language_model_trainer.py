@@ -14,6 +14,15 @@ class TestLanguageModelTrainer(object):
         if not path.exists():
             path.mkdir(parents=True)
         runner = LanguageModelTrainer()
-        history = runner.run('rnnlm', 'imdb', {'epochs': 1}, {'batch_size': 128}, path)
+        history = runner.run(
+            'rnnlm',
+            'ptb',
+            {'epochs': 1},
+            {
+                'path': pathlib.Path(__file__).parent.joinpath('data/ptb'),
+                'seq_length': 20,
+                'batch_size': 5
+            },
+            path)
 
         ok_(path.joinpath('model.h5').exists())
