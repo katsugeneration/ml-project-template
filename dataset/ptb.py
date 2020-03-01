@@ -3,6 +3,7 @@
 from typing import Any
 import pathlib
 import requests
+import numpy as np
 from dataset.base import BinaryTextDataset
 
 BASE_URL = 'https://raw.githubusercontent.com/tmatha/lstm/master/'
@@ -27,9 +28,18 @@ class PtbDataset(BinaryTextDataset):
         super(PtbDataset, self).__init__(**kwargs)
 
         with open(path.joinpath(TRAIN_FILE), 'r', encoding='utf-8') as f:
-            self.x_train = [line.strip() for line in f]
+            _train = np.array([
+                w for line in f
+                for w in [self.START_TOKEN] + line.strip().split() + [self.END_TOKEN]])
+            _train = np.array_split(_train, _train.shape[0] // self.seq_length)
+            self.x_train = list(map(lambda x: ' '.join(x), _train))
+
         with open(path.joinpath(EVAL_FILE), 'r', encoding='utf-8') as f:
-            self.x_test = [line.strip() for line in f]
+            _test = np.array([
+                w for line in f
+                for w in [self.START_TOKEN] + line.strip().split() + [self.END_TOKEN]])
+            _test = np.array_split(_test, _test.shape[0] // self.seq_length)
+            self.x_test = list(map(lambda x: ' '.join(x), _test))
 
 
 def download(

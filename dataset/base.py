@@ -437,6 +437,9 @@ class TextDatasetBase(DatasetBase):
 
     """
 
+    START_TOKEN = '<S>'
+    END_TOKEN = '<E>'
+
     def __init__(
             self,
             batch_size: int = 32,
@@ -467,9 +470,8 @@ class BinaryTextDataset(TextDatasetBase):
             dataset (Tuple[np.array, np.array]): training dataset pair
 
         """
-        _train = ['<S> ' + line + ' <E>' for line in self.x_train]
-        self.tokenizer.fit_on_texts(_train)
-        sequences = self.tokenizer.texts_to_sequences(_train)
+        self.tokenizer.fit_on_texts(self.x_train)
+        sequences = self.tokenizer.texts_to_sequences(self.x_train)
         sequences = self.uniformed_sequences(sequences, length=self.seq_length+1)
         sequences = np.array(sequences)
         return sequences[:, :-1], sequences[:, 1:]
@@ -497,8 +499,7 @@ class BinaryTextDataset(TextDatasetBase):
             dataset (Tuple[np.array, np.array]): evaluation dataset pair
 
         """
-        _test = ['<S> ' + line + ' <E>' for line in self.x_test]
-        sequences = self.tokenizer.texts_to_sequences(_test)
+        sequences = self.tokenizer.texts_to_sequences(self.x_test)
         sequences = self.uniformed_sequences(sequences, length=self.seq_length+1)
         sequences = np.array(sequences)
         return sequences[:, :-1], sequences[:, 1:]
