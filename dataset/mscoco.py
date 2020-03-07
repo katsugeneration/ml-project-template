@@ -31,6 +31,8 @@ class MSCococDatectionDataset(DirectoryObjectDitectionDataset):
     CATEGORY_KEY = 'category_id'
     IMAGE_KEY = 'image_id'
 
+    category_nums = 80
+
     def __init__(
             self,
             adjusted_shape: Tuple[int, int] = (416, 416),

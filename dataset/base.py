@@ -166,6 +166,7 @@ class DirectoryObjectDitectionDataset(ObjectDitectionDatasetBase):
             train_label_path: str,
             test_image_directory: str,
             test_label_path: str,
+            max_boxes: int = 5,
             **kwargs: Any) -> None:
         """Initilize params."""
         super(DirectoryObjectDitectionDataset, self).__init__(**kwargs)
@@ -173,6 +174,7 @@ class DirectoryObjectDitectionDataset(ObjectDitectionDatasetBase):
         self.train_label_path = pathlib.Path(train_label_path)
         self.test_image_directory = pathlib.Path(test_image_directory)
         self.test_label_path = pathlib.Path(test_label_path)
+        self.max_boxes = max_boxes
 
         self.x_train: List[pathlib.Path]
         self.x_test: List[pathlib.Path]
@@ -206,20 +208,27 @@ class DirectoryObjectDitectionDataset(ObjectDitectionDatasetBase):
             _box[:, 1] /= float(height)
             _box[:, 3] /= float(height)
 
+            _box = _box[:self.max_boxes]
+            if _box.shape[0] < self.max_boxes:
+                zero_padding = np.zeros((self.max_boxes - _box.shape[0], 5), dtype=_box.dtype)
+                _box = np.vstack((_box, zero_padding))
+
             image = image.resize(self.input_shape[:2], Image.BILINEAR)
             _image = np.asarray(image) / 255.0
             return _image, _box
 
-        def _generate(image_paths, labels) -> Generator:
-            for image_path, label in zip(image_paths, labels):
-                image = Image.open(image_path)
-                yield _resize_and_relative(image, label)
-
-        if repeat:
-            while True:
-                return _generate(image_paths, labels)
-        else:
-            return _generate(image_paths, labels)
+        while True:
+            for i in range(len(image_paths) // self.batch_size):
+                images = []
+                boxes = []
+                for image_path, label in zip(image_paths[i*self.batch_size:(i+1)*self.batch_size], labels[i*self.batch_size:(i+1)*self.batch_size]):
+                    image = Image.open(image_path)
+                    image, box = _resize_and_relative(image, label)
+                    images.append(image)
+                    boxes.append(box)
+                yield np.array(images), np.array(boxes)
+            if not repeat:
+                break
 
     def training_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
         """Return training dataset.
@@ -228,6 +237,7 @@ class DirectoryObjectDitectionDataset(ObjectDitectionDatasetBase):
             dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
 
         """
+        self.steps_per_epoch = len(self.x_train) // self.batch_size
         return self._data_generator(self.x_train, self.y_train, repeat=True)
 
     def eval_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
@@ -237,7 +247,8 @@ class DirectoryObjectDitectionDataset(ObjectDitectionDatasetBase):
             dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
 
         """
-        return self._data_generator(self.x_test, self.y_test, repeat=False)
+        self.eval_steps_per_epoch = len(self.x_test) // self.batch_size
+        return self._data_generator(self.x_test, self.y_test, repeat=True)
 
 
 class ImageSegmentationDatasetBase(ImageClassifierDatasetBase):

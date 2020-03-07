@@ -5,7 +5,7 @@ import shutil
 import pathlib
 from PIL import Image, ImageDraw
 import numpy as np
-from nose.tools import ok_, eq_
+from nose.tools import ok_, eq_, raises
 from dataset.mscoco import MSCococDatectionDataset
 
 
@@ -27,8 +27,28 @@ class TestMSCococDatectionDataset(object):
                 train_image_directory=pathlib.Path(__file__).parent.joinpath('data/mscoco/image'),
                 train_label_path=pathlib.Path(__file__).parent.joinpath('data/mscoco/annotations.json'),
                 test_image_directory=pathlib.Path(__file__).parent.joinpath('data/mscoco/image'),
-                test_label_path=pathlib.Path(__file__).parent.joinpath('data/mscoco/annotations.json'))
-        image, box = next(dataset.training_data_generator())
+                test_label_path=pathlib.Path(__file__).parent.joinpath('data/mscoco/annotations.json'),
+                batch_size=2)
+        generator = dataset.training_data_generator()
+        image, box = next(generator)
+        eq_(len(image), 2)
+        eq_(len(box[0]), dataset.max_boxes)
+        image, box = next(generator)
+        eq_(len(image), 2)
+
+    def test_eval_generator(self):
+        dataset = MSCococDatectionDataset(
+                train_image_directory=pathlib.Path(__file__).parent.joinpath('data/mscoco/image'),
+                train_label_path=pathlib.Path(__file__).parent.joinpath('data/mscoco/annotations.json'),
+                test_image_directory=pathlib.Path(__file__).parent.joinpath('data/mscoco/image'),
+                test_label_path=pathlib.Path(__file__).parent.joinpath('data/mscoco/annotations.json'),
+                batch_size=2)
+        generator = dataset.eval_data_generator()
+        image, box = next(generator)
+        eq_(len(image), 2)
+        eq_(len(box[0]), dataset.max_boxes)
+        image, box = next(generator)
+        eq_(len(image), 2)
 
     def test_draw_bbox(self):
         dataset = MSCococDatectionDataset(
@@ -51,12 +71,13 @@ class TestMSCococDatectionDataset(object):
                 train_image_directory=pathlib.Path(__file__).parent.joinpath('data/mscoco/image'),
                 train_label_path=pathlib.Path(__file__).parent.joinpath('data/mscoco/annotations.json'),
                 test_image_directory=pathlib.Path(__file__).parent.joinpath('data/mscoco/image'),
-                test_label_path=pathlib.Path(__file__).parent.joinpath('data/mscoco/annotations.json'))
+                test_label_path=pathlib.Path(__file__).parent.joinpath('data/mscoco/annotations.json'),
+                batch_size=2)
 
         image, boxes = next(dataset.training_data_generator())
-        image = Image.fromarray((image * 255.0).astype(np.uint8))
+        image = Image.fromarray((image[0] * 255.0).astype(np.uint8))
         draw = ImageDraw.Draw(image)
-        for box in boxes:
+        for box in boxes[0]:
             x, y, w, h, category = box
             x *= image.width
             w *= image.width
