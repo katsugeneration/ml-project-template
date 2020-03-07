@@ -213,7 +213,7 @@ class DirectoryObjectDitectionDataset(ObjectDitectionDatasetBase):
                 zero_padding = np.zeros((self.max_boxes - _box.shape[0], 5), dtype=_box.dtype)
                 _box = np.vstack((_box, zero_padding))
 
-            image = image.resize(self.input_shape[:2], Image.BILINEAR)
+            image = image.convert('RGB').resize(self.input_shape[:2], Image.BILINEAR)
             _image = np.asarray(image) / 255.0
             return _image, _box
 
@@ -239,6 +239,26 @@ class DirectoryObjectDitectionDataset(ObjectDitectionDatasetBase):
         """
         self.steps_per_epoch = len(self.x_train) // self.batch_size
         return self._data_generator(self.x_train, self.y_train, repeat=True)
+
+    def eval_data(self) -> Tuple[np.array, np.array]:
+        """Return evaluation dataset.
+
+        Return:
+            dataset (Tuple[np.array, np.array]): evaluation dataset pair
+
+        """
+        images: List[np.array] = []
+        boxes: List[np.array] = []
+        generator = self._data_generator(self.x_test, self.y_test, repeat=False)
+        while True:
+            try:
+                _images, _boxes = next(generator)
+                images.extend(_images)
+                boxes.extend(_boxes)
+            except StopIteration:
+                break
+
+        return np.array(images), np.array(boxes)
 
     def eval_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
         """Return test dataset.

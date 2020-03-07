@@ -376,7 +376,7 @@ class YoloV2(KerasObjectDetectionBase):
 
         Args:
             label (Tuple[List]): Ground truth boxes tensor with shape (B, num_true_boxes, 5)
-                                 containing box x_center, y_center, width, height, and class.
+                                 containing box relative x_center, y_center, width, height, and class.
             pred (Tuple[List]): last layer output features.
 
         Return:
@@ -430,3 +430,28 @@ class YoloV2(KerasObjectDetectionBase):
 
         loss = confidence_loss + classification_loss + coordinates_loss
         return loss
+
+    def inference(self) -> Tuple[List[Any], List[List[Any]], List[Any]]:
+        """Inference model.
+
+        Return:
+            target (List[Any]): inference target.
+            predicts (List[List[float]]): inference result. shape is data size x category_nums.
+            gt (List[Any]): ground truth data.
+
+        """
+        (x_test, y_test) = self.dataset.eval_data()
+        predicts = self.model.predict(x_test)
+
+        suppresed_predicts = []
+        for pred in predicts:
+            pred_x, pred_y, pred_w, pred_h, pred_confidence, pred_class_prob = self._head(np.array([pred]))
+            boxes = tf.reshape(tf.concat([pred_x, pred_y, pred_w, pred_h], axis=-1), (-1, 4))
+            scores = tf.reshape(pred_confidence[..., 0] * tf.reduce_max(pred_class_prob, axis=-1), (-1, ))
+            suppresed_indices = tf.image.non_max_suppression(
+                                    boxes,
+                                    scores,
+                                    max_output_size=5,
+                                    iou_threshold=0.5).numpy()
+            suppresed_predicts.append(pred.reshape((boxes.shape[0], -1))[suppresed_indices])
+        return x_test, np.array(suppresed_predicts), y_test
