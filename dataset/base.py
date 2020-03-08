@@ -222,10 +222,13 @@ class DirectoryObjectDitectionDataset(ObjectDitectionDatasetBase):
                 images = []
                 boxes = []
                 for image_path, label in zip(image_paths[i*self.batch_size:(i+1)*self.batch_size], labels[i*self.batch_size:(i+1)*self.batch_size]):
-                    image = Image.open(image_path)
-                    image, box = _resize_and_relative(image, label)
-                    images.append(image)
-                    boxes.append(box)
+                    try:
+                        image = Image.open(image_path)
+                        image, box = _resize_and_relative(image, label)
+                        images.append(image)
+                        boxes.append(box)
+                    except Exception:
+                        pass
                 yield np.array(images), np.array(boxes)
             if not repeat:
                 break

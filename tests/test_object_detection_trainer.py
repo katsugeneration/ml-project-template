@@ -19,7 +19,7 @@ class TestObjectDetectionTrainer(object):
                     'mscoco',
                     {'epochs': 1},
                     {
-                        'batch_size': 1,
+                        'batch_size': 3,
                         'train_image_directory': pathlib.Path(__file__).parent.joinpath('data/mscoco/image'),
                         'train_label_path': pathlib.Path(__file__).parent.joinpath('data/mscoco/annotations.json'),
                         'test_image_directory': pathlib.Path(__file__).parent.joinpath('data/mscoco/image'),
