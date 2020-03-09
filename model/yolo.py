@@ -440,7 +440,7 @@ class YoloV2(KerasObjectDetectionBase):
             gt (List[Any]): ground truth data.
 
         """
-        (x_test, y_test) = self.dataset.eval_data()
+        (x_test, y_test) = next(self.dataset.eval_data_generator())
         predicts = self.model.predict(x_test)
 
         suppresed_predicts = []
