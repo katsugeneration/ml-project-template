@@ -131,80 +131,111 @@ class YoloV2(KerasObjectDetectionBase):
             weight_decay: float = 5e-4,
             resize_shape: Tuple[int, int] = (416, 416),
             iou_threshold: float = 0.6,
+            tiny: bool = True,
             **kwargs: Any) -> None:
         """Intialize parameter and build model."""
         super(YoloV2, self).__init__(**kwargs)
 
         self.resize_shape = resize_shape
         self.iou_threshold = iou_threshold
+        self.tiny = tiny
         self.anchors = [(0.57273, 0.677385), (1.87446, 2.06253), (3.33843, 5.47434), (7.88282, 3.52778), (9.77052, 9.16828)]
         filters = [32, 64, 128, 256, 512, 1024]
+        tiny_filters = [16, 32, 64, 128, 256, 512, 1024]
 
         inputs = tf.keras.layers.Input(self.dataset.input_shape)
         x = tf.image.resize(inputs, resize_shape, method=tf.image.ResizeMethod.BILINEAR)
 
-        # darknet body
-        for i in range(2):
-            x = YoloConvBlock(
-                    filters=filters[i],
-                    kernel=3,
-                    stride=1,
-                    weight_decay=weight_decay)(x)
-            x = tf.keras.layers.MaxPool2D()(x)
-
-        for i in range(2, 4):
-            x = YoloBottleneckBlock(
-                    filters=filters[i],
-                    bottleneck_filters=filters[i-1],
-                    weight_decay=weight_decay)(x)
-            x = tf.keras.layers.MaxPool2D()(x)
-
-        for i in range(4, 6):
-            x = YoloBottleneckBlock(
-                    filters=filters[i],
-                    bottleneck_filters=filters[i-1],
-                    weight_decay=weight_decay)(x)
-            x = YoloConvBlock(
-                    filters=filters[i-1],
-                    kernel=1,
-                    stride=1,
-                    weight_decay=weight_decay)(x)
-            x = YoloConvBlock(
-                    filters=filters[i],
-                    kernel=3,
-                    stride=1,
-                    weight_decay=weight_decay)(x)
-
-            if i == 4:
-                _fine_grained = x
+        if tiny:
+            # tiny
+            for i in range(5):
+                x = YoloConvBlock(
+                        filters=tiny_filters[i],
+                        kernel=3,
+                        stride=1,
+                        weight_decay=weight_decay)(x)
                 x = tf.keras.layers.MaxPool2D()(x)
 
-        # normal path
-        x = YoloConvBlock(
-                filters=filters[-1],
-                kernel=3,
-                stride=1,
-                weight_decay=weight_decay)(x)
-        x = YoloConvBlock(
-                filters=filters[-1],
-                kernel=3,
-                stride=1,
-                weight_decay=weight_decay)(x)
+            x = YoloConvBlock(
+                    filters=tiny_filters[5],
+                    kernel=3,
+                    stride=1,
+                    weight_decay=weight_decay)(x)
+            x = tf.keras.layers.MaxPool2D(strides=1, padding='same')(x)
+            x = YoloConvBlock(
+                    filters=tiny_filters[6],
+                    kernel=3,
+                    stride=1,
+                    weight_decay=weight_decay)(x)
+            x = YoloConvBlock(
+                    filters=tiny_filters[5],
+                    kernel=3,
+                    stride=1,
+                    weight_decay=weight_decay)(x)
+        else:
+            # darknet body
+            for i in range(2):
+                x = YoloConvBlock(
+                        filters=filters[i],
+                        kernel=3,
+                        stride=1,
+                        weight_decay=weight_decay)(x)
+                x = tf.keras.layers.MaxPool2D()(x)
 
-        # fine grained path
-        _fine_grained = YoloConvBlock(
-                filters=filters[1],
-                kernel=1,
-                stride=1,
-                weight_decay=weight_decay)(_fine_grained)
-        _fine_grained = tf.nn.space_to_depth(_fine_grained, 2)
+            for i in range(2, 4):
+                x = YoloBottleneckBlock(
+                        filters=filters[i],
+                        bottleneck_filters=filters[i-1],
+                        weight_decay=weight_decay)(x)
+                x = tf.keras.layers.MaxPool2D()(x)
 
-        x = tf.concat([x, _fine_grained], axis=-1)
-        x = YoloConvBlock(
-                filters=filters[-1],
-                kernel=3,
-                stride=1,
-                weight_decay=weight_decay)(x)
+            for i in range(4, 6):
+                x = YoloBottleneckBlock(
+                        filters=filters[i],
+                        bottleneck_filters=filters[i-1],
+                        weight_decay=weight_decay)(x)
+                x = YoloConvBlock(
+                        filters=filters[i-1],
+                        kernel=1,
+                        stride=1,
+                        weight_decay=weight_decay)(x)
+                x = YoloConvBlock(
+                        filters=filters[i],
+                        kernel=3,
+                        stride=1,
+                        weight_decay=weight_decay)(x)
+
+                if i == 4:
+                    _fine_grained = x
+                    x = tf.keras.layers.MaxPool2D()(x)
+
+            # normal path
+            x = YoloConvBlock(
+                    filters=filters[-1],
+                    kernel=3,
+                    stride=1,
+                    weight_decay=weight_decay)(x)
+            x = YoloConvBlock(
+                    filters=filters[-1],
+                    kernel=3,
+                    stride=1,
+                    weight_decay=weight_decay)(x)
+
+            # fine grained path
+            _fine_grained = YoloConvBlock(
+                    filters=filters[1],
+                    kernel=1,
+                    stride=1,
+                    weight_decay=weight_decay)(_fine_grained)
+            _fine_grained = tf.nn.space_to_depth(_fine_grained, 2)
+
+            x = tf.concat([x, _fine_grained], axis=-1)
+            x = YoloConvBlock(
+                    filters=filters[-1],
+                    kernel=3,
+                    stride=1,
+                    weight_decay=weight_decay)(x)
+
         outputs = tf.keras.layers.Conv2D(
                 filters=len(self.anchors) * (self.dataset.category_nums + 5),
                 kernel_size=1,
@@ -360,6 +391,7 @@ class YoloV2(KerasObjectDetectionBase):
         indices = tf.stack([batches, i[..., 0], j[..., 0], best_anchor], axis=-1)
         detect_masks = tf.tensor_scatter_nd_update(detect_masks, indices, (1 * masks))
 
+        # Calculate gt label
         best_acnhors = tf.gather_nd(anchors, tf.expand_dims(best_anchor, axis=-1))
         adjusted_box = tf.cast(tf.concat(
             [

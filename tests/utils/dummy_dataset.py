@@ -30,6 +30,7 @@ class OjbjectDetectionDummyDataset(ObjectDitectionDatasetBase):
 
     input_shape = (32, 32, 3)
     category_nums = 2
+    max_boxes = 4
 
     def __init__(
             self,
