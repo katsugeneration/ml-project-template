@@ -222,21 +222,28 @@ class DirectoryObjectDitectionDataset(ObjectDitectionDatasetBase):
             _image = np.asarray(image) / 255.0
             return _image, _box
 
+        i = 0
+        images = []
+        boxes = []
         while True:
-            for i in range(len(image_paths) // self.batch_size):
+            if i == len(image_paths):
+                i = 0
+                if not repeat:
+                    break
+            try:
+                image = Image.open(image_paths[i])
+                image, box = _resize_and_relative(image, labels[i])
+                images.append(image)
+                boxes.append(box)
+            except Exception:
+                pass
+            i += 1
+            if len(images) == self.batch_size:
+                _images = np.array(images)
                 images = []
+                _boxes = np.array(boxes)
                 boxes = []
-                for image_path, label in zip(image_paths[i*self.batch_size:(i+1)*self.batch_size], labels[i*self.batch_size:(i+1)*self.batch_size]):
-                    try:
-                        image = Image.open(image_path)
-                        image, box = _resize_and_relative(image, label)
-                        images.append(image)
-                        boxes.append(box)
-                    except Exception:
-                        pass
-                yield np.array(images), np.array(boxes)
-            if not repeat:
-                break
+                yield _images, _boxes
 
     def training_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
         """Return training dataset.
