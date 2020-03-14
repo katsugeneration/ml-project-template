@@ -217,6 +217,7 @@ class YoloV2(KerasObjectDetectionBase):
         self.model = tf.keras.Model(inputs=inputs, outputs=outputs)
         self.setup()
 
+    @tf.function
     def _iou(
             self,
             box1: np.array,
@@ -304,6 +305,7 @@ class YoloV2(KerasObjectDetectionBase):
 
         return box_xy[..., 0:1], box_xy[..., 1:2], box_wh[..., 0:1], box_wh[..., 1:2], confidence, class_proba
 
+    @tf.function
     def preprocess_gt_boxes(
             self,
             batch_boxes: np.array) -> Tuple[np.array, np.array]:
@@ -322,7 +324,7 @@ class YoloV2(KerasObjectDetectionBase):
         """
         height, width = self.resize_shape
         num_anchors = len(self.anchors)
-        anchors = np.array(self.anchors)
+        anchors = tf.constant(self.anchors, dtype=batch_boxes.dtype)
 
         # Downsampling factor of 5x 2-stride max_pools == 32.
         assert height % 32 == 0, 'Image sizes in Yolov2 must be multiples of 32.'
@@ -332,36 +334,44 @@ class YoloV2(KerasObjectDetectionBase):
         batch_size = batch_boxes.shape[0]
         num_box_size = batch_boxes.shape[1]
         num_box_params = batch_boxes.shape[2]
-        detect_masks = np.zeros((batch_size, conv_height, conv_width, num_anchors, 1), dtype=np.float32)
-        matching_true_boxes = np.zeros((batch_size, conv_height, conv_width, num_anchors, num_box_params), dtype=np.float32)
+        detect_masks = tf.zeros((batch_size, conv_height, conv_width, num_anchors, 1), dtype=tf.float32)
+        matching_true_boxes = tf.zeros((batch_size, conv_height, conv_width, num_anchors, num_box_params), dtype=tf.float32)
 
-        for b, boxes in enumerate(batch_boxes):
-            box_classes = boxes[:, 4:5]
-            boxes = boxes[:, 0:4] * np.array([conv_width, conv_height, conv_width, conv_height], dtype=np.float32)
-            i = np.floor(boxes[:, 1:2]).astype(np.int)
-            j = np.floor(boxes[:, 0:1]).astype(np.int)
+        # Calculate base
+        batch_box_classes = batch_boxes[..., 4:5]
+        batch_boxes = batch_boxes[..., 0:4] * [conv_width, conv_height, conv_width, conv_height]
+        i = tf.cast(tf.math.floor(batch_boxes[..., 1:2]), dtype=tf.int32)
+        j = tf.cast(tf.math.floor(batch_boxes[..., 0:1]), dtype=tf.int32)
 
-            ious = self._iou(
-                        np.tile(np.expand_dims(np.transpose(boxes), axis=2), (1, 1, num_anchors)),  # (4, None, A)
-                        np.concatenate([
-                            np.tile(np.expand_dims(np.transpose(boxes[:, 0:2]), axis=2), (1, 1, num_anchors)),
-                            np.tile(np.expand_dims(np.transpose(anchors), axis=1), (1, num_box_size, 1))], axis=0))
-            best_iou = np.max(ious, axis=1)
-            best_anchor = np.argmax(ious, axis=1)
+        # Calculate IoU
+        box = tf.tile(tf.expand_dims(tf.transpose(batch_boxes, (2, 0, 1)), axis=-1), (1, 1, 1, num_anchors))  # (4, B, None, A)
+        batch_anchors = tf.tile(tf.expand_dims(tf.expand_dims(tf.transpose(anchors), axis=1), axis=1), (1, batch_size, num_box_size, 1))
+        ious = self._iou(
+            tf.split(box, [1] * 4),
+            tf.split(tf.concat([box[0:2], batch_anchors], axis=0), [1] * 4),
+            mode='tf')[0]
+        best_iou = tf.reduce_max(ious, axis=2)
+        best_anchor = tf.argmax(ious, axis=2, output_type=tf.int32)
 
-            masks = np.expand_dims(
-                (np.all(boxes != 0, axis=1) & (best_iou > 0)).astype(dtype=np.int32), axis=-1)
-            detect_masks[b, i, j, best_anchor] = 1 * masks
-            adjusted_box = np.concatenate(
-                [
-                    boxes[:, 0:1] - j,
-                    boxes[:, 1:2] - i,
-                    np.log(boxes[:, 2:3] / anchors[best_anchor, 0:1] + 1e-7),
-                    np.log(boxes[:, 3:4] / anchors[best_anchor, 1:2] + 1e-7),
-                    box_classes
-                ],
-                axis=-1).astype(dtype=np.float32)
-            matching_true_boxes[b, i, j, best_anchor] = adjusted_box * masks
+        # Calculate mask
+        masks = tf.expand_dims(
+            tf.cast((tf.reduce_all(batch_boxes != 0, axis=-1) & (best_iou > 0)), dtype=tf.float32), axis=-1)
+        batches = tf.tile(tf.expand_dims(tf.range(batch_size, dtype=tf.int32), axis=1), (1, num_box_size))
+        indices = tf.stack([batches, i[..., 0], j[..., 0], best_anchor], axis=-1)
+        detect_masks = tf.tensor_scatter_nd_update(detect_masks, indices, (1 * masks))
+
+        best_acnhors = tf.gather_nd(anchors, tf.expand_dims(best_anchor, axis=-1))
+        adjusted_box = tf.cast(tf.concat(
+            [
+                batch_boxes[..., 0:1] - tf.cast(j, dtype=batch_boxes.dtype),
+                batch_boxes[..., 1:2] - tf.cast(i, dtype=batch_boxes.dtype),
+                tf.math.log(batch_boxes[..., 2:3] / best_acnhors[..., 0:1] + 1e-7),
+                tf.math.log(batch_boxes[..., 3:4] / best_acnhors[..., 1:2] + 1e-7),
+                batch_box_classes
+            ],
+            axis=-1), dtype=tf.float32)
+        indices = tf.stack([batches, i[..., 0], j[..., 0], best_anchor], axis=-1)
+        matching_true_boxes = tf.tensor_scatter_nd_update(matching_true_boxes, indices, (adjusted_box * masks))
         return detect_masks, matching_true_boxes
 
     @tf.function
@@ -383,17 +393,11 @@ class YoloV2(KerasObjectDetectionBase):
         # For keras setup code
         if len(label.shape) != 3:
             label = tf.constant([[[0.5, 0.5, 0.5, 0.5, 0.5]]], dtype=np.float32)
+        else:
+            label = tf.ensure_shape(label, (self.dataset.batch_size, self.dataset.max_boxes, 5))
 
         # Create gt boxes
-        detect_masks, matching_true_boxes = tf.py_function(
-                                                self.preprocess_gt_boxes,
-                                                (label, ),
-                                                [tf.float32, tf.float32])
-        anchor_nums = len(self.anchors)
-        detect_masks = tf.ensure_shape(detect_masks, (None, pred.shape[1], pred.shape[2], anchor_nums, 1))
-        matching_true_boxes = tf.ensure_shape(matching_true_boxes, (None, pred.shape[1], pred.shape[2], anchor_nums, 5))
-        detect_masks = tf.stop_gradient(detect_masks)
-        matching_true_boxes = tf.stop_gradient(matching_true_boxes)
+        detect_masks, matching_true_boxes = self.preprocess_gt_boxes(label)
 
         # Reshape to corresponding for (B, 1, 1, 1, num_true_boxes, 5) array
         true_boxes = tf.expand_dims(tf.expand_dims(tf.expand_dims(label, axis=1), axis=1), axis=1)

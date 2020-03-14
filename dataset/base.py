@@ -146,7 +146,12 @@ class ObjectDitectionDatasetBase(ImageClassifierDatasetBase):
 
     """
 
-    pass
+    def __init__(
+            self,
+            **kwargs: Any) -> None:
+        """Initilize params."""
+        super(ObjectDitectionDatasetBase, self).__init__(**kwargs)
+        self.max_boxes: int
 
 
 class DirectoryObjectDitectionDataset(ObjectDitectionDatasetBase):
