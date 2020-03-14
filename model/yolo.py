@@ -349,24 +349,19 @@ class YoloV2(KerasObjectDetectionBase):
             best_iou = np.max(ious, axis=1)
             best_anchor = np.argmax(ious, axis=1)
 
-            targets = np.all(boxes != 0, axis=1) & (best_iou > 0)
-            i = i[targets]
-            j = j[targets]
-            boxes = boxes[targets]
-            best_anchor = best_anchor[targets]
-            box_classes = box_classes[targets]
-
-            detect_masks[b, i, j, best_anchor] = 1
+            masks = np.expand_dims(
+                (np.all(boxes != 0, axis=1) & (best_iou > 0)).astype(dtype=np.int32), axis=-1)
+            detect_masks[b, i, j, best_anchor] = 1 * masks
             adjusted_box = np.concatenate(
                 [
                     boxes[:, 0:1] - j,
                     boxes[:, 1:2] - i,
-                    np.log(boxes[:, 2:3] / anchors[best_anchor, 0:1]),
-                    np.log(boxes[:, 3:4] / anchors[best_anchor, 1:2]),
+                    np.log(boxes[:, 2:3] / anchors[best_anchor, 0:1] + 1e-7),
+                    np.log(boxes[:, 3:4] / anchors[best_anchor, 1:2] + 1e-7),
                     box_classes
                 ],
                 axis=-1).astype(dtype=np.float32)
-            matching_true_boxes[b, i, j, best_anchor] = adjusted_box
+            matching_true_boxes[b, i, j, best_anchor] = adjusted_box * masks
         return detect_masks, matching_true_boxes
 
     @tf.function
