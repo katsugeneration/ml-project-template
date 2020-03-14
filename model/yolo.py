@@ -335,6 +335,8 @@ class YoloV2(KerasObjectDetectionBase):
 
         for b, boxes in enumerate(batch_boxes):
             for box in boxes:
+                if all(box == 0):
+                    continue
                 # scale box to convolutional feature spatial dimensions
                 box_class = box[4:5]
                 box = box[0:4] * np.array([conv_width, conv_height, conv_width, conv_height], dtype=np.float32)
@@ -431,6 +433,18 @@ class YoloV2(KerasObjectDetectionBase):
         loss = confidence_loss + classification_loss + coordinates_loss
         return loss
 
+    def filter_boxes(self, boxes, box_confidence, box_class_probs, threshold=0.6):
+        """Filter YOLO boxes based on object and class confidence."""
+        box_scores = box_confidence * box_class_probs
+        box_classes = tf.argmax(box_scores, axis=-1)
+        box_class_scores = tf.reduce_max(box_scores, axis=-1)
+        prediction_mask = box_class_scores >= threshold
+
+        boxes = tf.boolean_mask(boxes, prediction_mask)
+        scores = tf.boolean_mask(box_class_scores, prediction_mask)
+        classes = tf.boolean_mask(box_classes, prediction_mask)
+        return boxes, scores, classes
+
     def inference(self) -> Tuple[List[Any], List[List[Any]], List[Any]]:
         """Inference model.
 
@@ -447,11 +461,18 @@ class YoloV2(KerasObjectDetectionBase):
         for pred in predicts:
             pred_x, pred_y, pred_w, pred_h, pred_confidence, pred_class_prob = self._head(np.array([pred]))
             boxes = tf.reshape(tf.concat([pred_x, pred_y, pred_w, pred_h], axis=-1), (-1, 4))
-            scores = tf.reshape(pred_confidence[..., 0] * tf.reduce_max(pred_class_prob, axis=-1), (-1, ))
+            pred_confidence = tf.reshape(pred_confidence, (-1, 1))
+            pred_class_prob = tf.reshape(pred_class_prob, (-1, self.dataset.category_nums))
+            boxes, scores, classes = self.filter_boxes(boxes, pred_confidence, pred_class_prob)
             suppresed_indices = tf.image.non_max_suppression(
                                     boxes,
                                     scores,
                                     max_output_size=5,
-                                    iou_threshold=0.5).numpy()
-            suppresed_predicts.append(pred.reshape((boxes.shape[0], -1))[suppresed_indices])
+                                    iou_threshold=0.5)
+
+            boxes = tf.gather(boxes, suppresed_indices)
+            scores = tf.expand_dims(tf.gather(scores, suppresed_indices), axis=-1)
+            classes = tf.expand_dims(tf.gather(classes, suppresed_indices), axis=-1)
+            preds = tf.concat([boxes, scores, tf.cast(classes, dtype=boxes.dtype)], axis=-1)
+            suppresed_predicts.append(preds.numpy())
         return x_test, np.array(suppresed_predicts), y_test
