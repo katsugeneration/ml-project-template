@@ -242,15 +242,15 @@ class YoloV2(KerasObjectDetectionBase):
         x, y, w, h = box1
         _x, _y, _w, _h = box2
 
-        left_top = concat([x - w / 2., y - h / 2.], axis=-1)
-        right_under = concat([x + w / 2., y + h / 2.], axis=-1)
-        _left_top = concat([_x - _w / 2., _y - _h / 2.], axis=-1)
-        _right_under = concat([_x + _w / 2., _y + _h / 2.], axis=-1)
+        left_top = concat([xp.expand_dims(x - w / 2., axis=-1), xp.expand_dims(y - h / 2., axis=-1)], axis=-1)
+        right_under = concat([xp.expand_dims(x + w / 2., axis=-1), xp.expand_dims(y + h / 2., axis=-1)], axis=-1)
+        _left_top = concat([xp.expand_dims(_x - _w / 2., axis=-1), xp.expand_dims(_y - _h / 2., axis=-1)], axis=-1)
+        _right_under = concat([xp.expand_dims(_x + _w / 2., axis=-1), xp.expand_dims(_y + _h / 2., axis=-1)], axis=-1)
 
         intersect_left_top = xp.maximum(left_top, _left_top,)
         intersect_right_under = xp.minimum(right_under, _right_under)
         intersect_wh = xp.maximum(intersect_right_under - intersect_left_top, 0.)
-        intersect_areas = intersect_wh[..., 0:1] * intersect_wh[..., 1:2]
+        intersect_areas = intersect_wh[..., 0] * intersect_wh[..., 1]
 
         box1_areas = w * h
         box2_areas = _w * _h
@@ -322,6 +322,7 @@ class YoloV2(KerasObjectDetectionBase):
         """
         height, width = self.resize_shape
         num_anchors = len(self.anchors)
+        anchors = np.array(self.anchors)
 
         # Downsampling factor of 5x 2-stride max_pools == 32.
         assert height % 32 == 0, 'Image sizes in Yolov2 must be multiples of 32.'
@@ -329,44 +330,43 @@ class YoloV2(KerasObjectDetectionBase):
         conv_height = height // 32
         conv_width = width // 32
         batch_size = batch_boxes.shape[0]
+        num_box_size = batch_boxes.shape[1]
         num_box_params = batch_boxes.shape[2]
         detect_masks = np.zeros((batch_size, conv_height, conv_width, num_anchors, 1), dtype=np.float32)
         matching_true_boxes = np.zeros((batch_size, conv_height, conv_width, num_anchors, num_box_params), dtype=np.float32)
 
         for b, boxes in enumerate(batch_boxes):
-            for box in boxes:
-                if all(box == 0):
-                    continue
-                # scale box to convolutional feature spatial dimensions
-                box_class = box[4:5]
-                box = box[0:4] * np.array([conv_width, conv_height, conv_width, conv_height], dtype=np.float32)
-                i = np.floor(box[1]).astype(np.int)
-                j = np.floor(box[0]).astype(np.int)
-                best_iou = 0.
-                best_anchor = 0
+            box_classes = boxes[:, 4:5]
+            boxes = boxes[:, 0:4] * np.array([conv_width, conv_height, conv_width, conv_height], dtype=np.float32)
+            i = np.floor(boxes[:, 1:2]).astype(np.int)
+            j = np.floor(boxes[:, 0:1]).astype(np.int)
 
-                for k, anchor in enumerate(self.anchors):
-                    # Find IOU between box shifted to origin and anchor box.
-                    anchor_tensor = np.array(anchor)
-                    iou = self._iou(
-                                [np.array([box[0]]), np.array([box[1]]), np.array([box[2]]), np.array([box[3]])],
-                                [np.array([box[0]]), np.array([box[1]]), np.array([anchor_tensor[0]]), np.array([anchor_tensor[1]])])[0]
-                    if iou > best_iou:
-                        best_iou = iou
-                        best_anchor = k
+            ious = self._iou(
+                        np.tile(np.expand_dims(np.transpose(boxes), axis=2), (1, 1, num_anchors)),  # (4, None, A)
+                        np.concatenate([
+                            np.tile(np.expand_dims(np.transpose(boxes[:, 0:2]), axis=2), (1, 1, num_anchors)),
+                            np.tile(np.expand_dims(np.transpose(anchors), axis=1), (1, num_box_size, 1))], axis=0))
+            best_iou = np.max(ious, axis=1)
+            best_anchor = np.argmax(ious, axis=1)
 
-                if best_iou > 0:
-                    detect_masks[b, i, j, best_anchor] = 1
-                    adjusted_box = np.array(
-                        [
-                            box[0] - j,
-                            box[1] - i,
-                            np.log(box[2] / self.anchors[best_anchor][0]),
-                            np.log(box[3] / self.anchors[best_anchor][1]),
-                            box_class
-                        ],
-                        dtype=np.float32)
-                    matching_true_boxes[b, i, j, best_anchor] = adjusted_box
+            targets = np.all(boxes != 0, axis=1) & (best_iou > 0)
+            i = i[targets]
+            j = j[targets]
+            boxes = boxes[targets]
+            best_anchor = best_anchor[targets]
+            box_classes = box_classes[targets]
+
+            detect_masks[b, i, j, best_anchor] = 1
+            adjusted_box = np.concatenate(
+                [
+                    boxes[:, 0:1] - j,
+                    boxes[:, 1:2] - i,
+                    np.log(boxes[:, 2:3] / anchors[best_anchor, 0:1]),
+                    np.log(boxes[:, 3:4] / anchors[best_anchor, 1:2]),
+                    box_classes
+                ],
+                axis=-1).astype(dtype=np.float32)
+            matching_true_boxes[b, i, j, best_anchor] = adjusted_box
         return detect_masks, matching_true_boxes
 
     @tf.function
