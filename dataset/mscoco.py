@@ -134,7 +134,8 @@ def download(
 
 def convert_tfrecord(
         artifact_directory: pathlib.Path,
-        before_artifact_directory: pathlib.Path) -> None:
+        before_artifact_directory: pathlib.Path,
+        split_num: int = 1) -> None:
     """Convert tfrecord format.
 
     Args:
@@ -184,10 +185,23 @@ def convert_tfrecord(
                 except Exception:
                     pass
 
-        writer = tf.data.experimental.TFRecordWriter(str(tfrecord_path.joinpath('data.tfrecord')))
+        def write(key, dataset):
+            filename = tf.strings.join([str(tfrecord_path), '/data', tf.strings.as_string(key), '.tfrecord'])
+            writer = tf.data.experimental.TFRecordWriter(filename)
+            writer.write(dataset.map(lambda _, x: x))
+            return tf.data.Dataset.from_tensors(filename)
+
+        def key(i, *args):
+            return i
+
         serialized_dataset = tf.data.Dataset.from_generator(
             generator, output_types=tf.string, output_shapes=())
-        writer.write(serialized_dataset)
+        dataset = serialized_dataset.enumerate().apply(
+            tf.data.experimental.group_by_window(
+                key, write, split_num
+            ))
+        writer = tf.data.experimental.TFRecordWriter(str(tfrecord_path) + '/files.tfrecord')
+        writer.write(dataset)
 
     _save(train_image_directory, train_label_path, train_record_path)
     _save(test_image_directory, test_label_path, test_record_path)

@@ -22,7 +22,7 @@ class TestMSCococDatectionDataset(object):
         convert_tfrecord(self.path, pathlib.Path(__file__).parent.joinpath('data/mscoco/'))
         dataset = MSCococDatectionDataset(
                 train_image_directory=pathlib.Path(__file__).parent.joinpath('data/mscoco/train2014'),
-                test_image_directory=pathlib.Path(__file__).parent.joinpath('data/mscoco/eval2014'),
+                test_image_directory=pathlib.Path(__file__).parent.joinpath('data/mscoco/val2014'),
                 train_data_directory=self.path.joinpath('train'),
                 test_data_directory=self.path.joinpath('test'),
                 batch_size=2)
@@ -32,10 +32,10 @@ class TestMSCococDatectionDataset(object):
     def test_convert_tfrecord(self):
         convert_tfrecord(self.path, pathlib.Path(__file__).parent.joinpath('data/mscoco/'))
 
-        ok_(self.path.joinpath('train/data.tfrecord').exists())
-        ok_(self.path.joinpath('test/data.tfrecord').exists())
+        ok_(self.path.joinpath('train/data0.tfrecord').exists())
+        ok_(self.path.joinpath('test/data0.tfrecord').exists())
 
-        dataset = tf.data.TFRecordDataset([str(self.path.joinpath('train/data.tfrecord'))])
+        dataset = tf.data.TFRecordDataset([str(self.path.joinpath('train/data0.tfrecord'))])
         def _parse_image_function(example_proto):
             return tf.io.parse_single_sequence_example(
                 example_proto,
@@ -54,7 +54,7 @@ class TestMSCococDatectionDataset(object):
         convert_tfrecord(self.path, pathlib.Path(__file__).parent.joinpath('data/mscoco/'))
         dataset = MSCococDatectionDataset(
                 train_image_directory=pathlib.Path(__file__).parent.joinpath('data/mscoco/train2014'),
-                test_image_directory=pathlib.Path(__file__).parent.joinpath('data/mscoco/eval2014'),
+                test_image_directory=pathlib.Path(__file__).parent.joinpath('data/mscoco/val2014'),
                 train_data_directory=self.path.joinpath('train'),
                 test_data_directory=self.path.joinpath('test'),
                 batch_size=2)
@@ -70,7 +70,7 @@ class TestMSCococDatectionDataset(object):
         convert_tfrecord(self.path, pathlib.Path(__file__).parent.joinpath('data/mscoco/'))
         dataset = MSCococDatectionDataset(
                 train_image_directory=pathlib.Path(__file__).parent.joinpath('data/mscoco/train2014'),
-                test_image_directory=pathlib.Path(__file__).parent.joinpath('data/mscoco/eval2014'),
+                test_image_directory=pathlib.Path(__file__).parent.joinpath('data/mscoco/val2014'),
                 train_data_directory=self.path.joinpath('train'),
                 test_data_directory=self.path.joinpath('test'),
                 batch_size=2)
@@ -86,7 +86,7 @@ class TestMSCococDatectionDataset(object):
         convert_tfrecord(self.path, pathlib.Path(__file__).parent.joinpath('data/mscoco/'))
         dataset = MSCococDatectionDataset(
                 train_image_directory=pathlib.Path(__file__).parent.joinpath('data/mscoco/train2014'),
-                test_image_directory=pathlib.Path(__file__).parent.joinpath('data/mscoco/eval2014'),
+                test_image_directory=pathlib.Path(__file__).parent.joinpath('data/mscoco/val2014'),
                 train_data_directory=self.path.joinpath('train'),
                 test_data_directory=self.path.joinpath('test'),
                 batch_size=2)
