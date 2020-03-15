@@ -9,7 +9,6 @@ import numpy as np
 from PIL import Image
 import tensorflow as tf
 from dataset.mixup import MixupGenerator
-from dataset.utils.multiprocess import Map
 
 
 class DatasetBase(object):
@@ -159,120 +158,98 @@ class DirectoryObjectDitectionDataset(ObjectDitectionDatasetBase):
     """Directory loaded detection dataset.
 
     Args:
-        train_image_directory (str): path to training image directory.
-        train_label_path (str): path to training label file path.
-        test_image_directory (str): path to test image directory.
-        test_label_path (str): path to test label file path.
+        train_data_directory (str): path to training data directory.
+        test_data_directory (str): path to test data directory.
 
     """
 
     def __init__(
             self,
-            train_image_directory: str,
-            train_label_path: str,
-            test_image_directory: str,
-            test_label_path: str,
+            train_data_directory: str,
+            test_data_directory: str,
             max_boxes: int = 5,
             **kwargs: Any) -> None:
         """Initilize params."""
         super(DirectoryObjectDitectionDataset, self).__init__(**kwargs)
-        self.train_image_directory = pathlib.Path(train_image_directory)
-        self.train_label_path = pathlib.Path(train_label_path)
-        self.test_image_directory = pathlib.Path(test_image_directory)
-        self.test_label_path = pathlib.Path(test_label_path)
+        self.train_data_directory = pathlib.Path(train_data_directory)
+        self.test_data_directory = pathlib.Path(test_data_directory)
         self.max_boxes = max_boxes
-
-        self.x_train: List[pathlib.Path]
-        self.x_test: List[pathlib.Path]
-        self.y_train: List[List]
-        self.y_test: List[List]
-
-        self.maps: List[Map] = []
-        self._do = True
-
-    def __del__(self):
-        super().__del__()
-        self.close()
-
-    def close(self):
-        self._do = False
-        for map in self.maps:
-            map.close()
+        self.x_train: List
+        self.x_test: List
 
     def _resize_and_relative(
             self,
-            image_path: str,
-            box: List[List]) -> Tuple[np.array, List[List]]:
+            image: np.array,
+            box: np.array) -> Tuple[np.array, np.array]:
         """Resize and processing images."""
-        image = Image.open(image_path)
-        width, height = image.width, image.height
-        _box = np.array(box)
+        def _process(image, box):
+            _box = box.numpy()
+            width = image.shape[1]
+            height = image.shape[0]
 
-        _box[:, 0] /= float(width)
-        _box[:, 2] /= float(width)
-        _box[:, 1] /= float(height)
-        _box[:, 3] /= float(height)
+            _box[:, 0] /= width
+            _box[:, 2] /= width
+            _box[:, 1] /= height
+            _box[:, 3] /= height
 
-        _box = _box[:self.max_boxes]
-        if _box.shape[0] < self.max_boxes:
-            zero_padding = np.zeros((self.max_boxes - _box.shape[0], 5), dtype=_box.dtype)
-            _box = np.vstack((_box, zero_padding))
+            _box = _box[:self.max_boxes]
+            if _box.shape[0] < self.max_boxes:
+                zero_padding = np.zeros((self.max_boxes - _box.shape[0], 5), dtype=_box.dtype)
+                _box = np.vstack((_box, zero_padding))
+            return _box
 
-        image = image.convert('RGB').resize(self.input_shape[:2], Image.BILINEAR)
-        _image = np.asarray(image) / 255.0
-        return _image, _box
+        box = tf.py_function(_process, [image, box], [tf.float32])[0]
+        image = tf.image.resize(image, self.input_shape[:2], tf.image.ResizeMethod.BILINEAR)
+        image = image / 255.0
+        return image, box
+
+    def _decode_tfrecord(
+            self,
+            example_proto):
+        image_feature, label_feature = tf.io.parse_single_sequence_example(
+                example_proto,
+                context_features=self.image_feature_description,
+                sequence_features=self.label_feature_description)
+
+        height = image_feature['height'][0]
+        width = image_feature['width'][0]
+        image = tf.io.decode_raw(image_feature['image'], tf.uint8)
+        image = tf.reshape(image, tf.stack((height, width, 3)))
+        label = label_feature['label']
+        return image, label
 
     def _data_generator(
             self,
-            image_paths: List[pathlib.Path],
-            labels: List[List],
+            data_path: pathlib.Path,
             repeat: bool = True) -> Generator:
         """Return training dataset.
 
         Args:
-            image_paths (List[pathlib.Path]): image path list.
-            labels (List[List]]): label lists containing box absolute x_center, y_center, width, height, and class.
+            data_path (pathlib.Path): data directory path.
             repeat (bool): whether or not to repeat data generate.
 
         Return:
             dataset (Generator): dataset generator
 
         """
-        i = 0
-        images: List = []
-        boxes: List = []
-        steps = len(image_paths) // self.batch_size
+        dataset = (
+            tf.data.TFRecordDataset(tf.data.TFRecordDataset.list_files(str(data_path) + '/*.tfrecord'))
+            .map(self._decode_tfrecord)
+            .map(self._resize_and_relative)
+            .shuffle(200)
+            .batch(self.batch_size)
+        )
 
-        map = Map(self._resize_and_relative, 3, 200)
-        self.maps.append(map)
+        if repeat:
+            dataset = dataset.repeat()
 
-        while self._do:
-            if i == steps:
-                if repeat:
-                    i = 0
-            if map.out_queue_empty():
-                if not repeat:
-                    map.close()
-                    break
-            if map.in_queue_empty():
-                if i < steps:
-                    map.put(zip(
-                        image_paths[i*self.batch_size:(i+1)*self.batch_size],
-                        labels[i*self.batch_size:(i+1)*self.batch_size]))
-                    i += 1
+        dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
-            ret = map.get(self.batch_size - len(images))
-            if len(ret) != 0:
-                image, box = zip(*ret)
-                images.extend(image)
-                boxes.extend(box)
-
-            if len(images) == self.batch_size:
-                yield np.array(images), np.array(boxes)
-                images = []
-                boxes = []
-        else:
-            map.close()
+        try:
+            for image, label in dataset:
+                yield image, label
+        except Exception:
+            pass
 
     def training_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
         """Return training dataset.
@@ -282,7 +259,7 @@ class DirectoryObjectDitectionDataset(ObjectDitectionDatasetBase):
 
         """
         self.steps_per_epoch = len(self.x_train) // self.batch_size
-        return self._data_generator(self.x_train, self.y_train, repeat=True)
+        return self._data_generator(self.train_data_directory, repeat=True)
 
     def eval_data(self) -> Tuple[np.array, np.array]:
         """Return evaluation dataset.
@@ -293,7 +270,7 @@ class DirectoryObjectDitectionDataset(ObjectDitectionDatasetBase):
         """
         images: List[np.array] = []
         boxes: List[np.array] = []
-        generator = self._data_generator(self.x_test, self.y_test, repeat=False)
+        generator = self._data_generator(self.test_data_directory, repeat=False)
         while True:
             try:
                 _images, _boxes = next(generator)
@@ -312,7 +289,7 @@ class DirectoryObjectDitectionDataset(ObjectDitectionDatasetBase):
 
         """
         self.eval_steps_per_epoch = len(self.x_test) // self.batch_size
-        return self._data_generator(self.x_test, self.y_test, repeat=True)
+        return self._data_generator(self.test_data_directory, repeat=True)
 
 
 class ImageSegmentationDatasetBase(ImageClassifierDatasetBase):

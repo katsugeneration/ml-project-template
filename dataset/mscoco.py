@@ -8,7 +8,6 @@ from collections import defaultdict
 import requests
 import tqdm
 from PIL import Image
-import numpy as np
 import tensorflow as tf
 from dataset.base import DirectoryObjectDitectionDataset
 
@@ -26,30 +25,27 @@ IMAGES_KEY = 'images'
 ID_KEY = 'id'
 FILE_KEY = 'file_name'
 
-image_feature_description = {
-    'height': tf.io.FixedLenFeature([1], tf.int64),
-    'width': tf.io.FixedLenFeature([1], tf.int64),
-    'image': tf.io.FixedLenFeature([], tf.string),
-}
-
-
-label_feature_description = {
-    'label': tf.io.FixedLenSequenceFeature([5], tf.float32),
-}
-
 
 class MSCococDatectionDataset(DirectoryObjectDitectionDataset):
     """MSCOCO dataset loader."""
 
-    BBOX_KEY = 'bbox'
-    CATEGORY_KEY = 'category_id'
-    IMAGE_KEY = 'image_id'
-
     category_nums = 80
+
+    image_feature_description = {
+        'height': tf.io.FixedLenFeature([1], tf.int64),
+        'width': tf.io.FixedLenFeature([1], tf.int64),
+        'image': tf.io.FixedLenFeature([], tf.string),
+    }
+
+    label_feature_description = {
+        'label': tf.io.FixedLenSequenceFeature([5], tf.float32),
+    }
 
     # TOOD: tfrecord OR pickleに変換して読み込むようにする
     def __init__(
             self,
+            train_image_directory: pathlib.Path,
+            test_image_directory: pathlib.Path,
             adjusted_shape: Tuple[int, int] = (416, 416),
             **kwargs) -> None:
         """Load and preprocessing coco object detection data.
@@ -59,38 +55,10 @@ class MSCococDatectionDataset(DirectoryObjectDitectionDataset):
 
         """
         super(MSCococDatectionDataset, self).__init__(**kwargs)
-
         self.input_shape = (adjusted_shape[0], adjusted_shape[1], 3)
 
-        def preprocess(data, image_directory):
-            _images = dict()
-            _boxes = defaultdict(list)
-
-            for image in data[IMAGES_KEY]:
-                image_path = image_directory.joinpath(image[FILE_KEY])
-                if image_path.exists():
-                    _images[image[ID_KEY]] = image_path
-            for annotation in data[ANNOTATION_KEY]:
-                left_x, left_y, w, h = annotation[self.BBOX_KEY]
-                center_x = left_x + w / 2.
-                center_y = left_y + h / 2.
-                _boxes[annotation[self.IMAGE_KEY]].append(
-                     [center_x, center_y, w, h, annotation[self.CATEGORY_KEY]])
-            return _images, _boxes
-
-        with self.train_label_path.open() as f:
-            data = json.load(f)
-        train_images, train_boxes = preprocess(data, self.train_image_directory)
-        train_keys = set(train_images.keys()) & set(train_boxes.keys())
-        self.x_train = [train_images[k] for k in train_keys]
-        self.y_train = [train_boxes[k] for k in train_keys]
-
-        with self.test_label_path.open() as f:
-            data = json.load(f)
-        test_images, test_boxes = preprocess(data, self.test_image_directory)
-        test_keys = set(test_images.keys()) & set(test_boxes.keys())
-        self.x_test = [test_images[k] for k in test_keys]
-        self.y_test = [test_boxes[k] for k in test_keys]
+        self.x_train = list(train_image_directory.glob('*.*'))
+        self.x_test = list(test_image_directory.glob('*.*'))
 
 
 def make_example(
@@ -182,8 +150,10 @@ def convert_tfrecord(
     train_label_path = before_artifact_directory.joinpath('annotations/instances_train2014.json')
     test_image_directory = before_artifact_directory.joinpath('val2014')
     test_label_path = before_artifact_directory.joinpath('annotations/instances_val2014.json')
-    train_record_path = artifact_directory.joinpath('train.tfrecord')
-    test_record_path = artifact_directory.joinpath('test.tfrecord')
+    train_record_path = artifact_directory.joinpath('train')
+    train_record_path.mkdir(parents=True, exist_ok=True)
+    test_record_path = artifact_directory.joinpath('test')
+    test_record_path.mkdir(parents=True, exist_ok=True)
 
     def preprocess(data, image_directory):
         _images = dict()
@@ -214,7 +184,7 @@ def convert_tfrecord(
                 except Exception:
                     pass
 
-        writer = tf.data.experimental.TFRecordWriter(str(tfrecord_path))
+        writer = tf.data.experimental.TFRecordWriter(str(tfrecord_path.joinpath('data.tfrecord')))
         serialized_dataset = tf.data.Dataset.from_generator(
             generator, output_types=tf.string, output_shapes=())
         writer.write(serialized_dataset)
