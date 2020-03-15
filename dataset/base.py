@@ -9,6 +9,7 @@ import numpy as np
 from PIL import Image
 import tensorflow as tf
 from dataset.mixup import MixupGenerator
+from dataset.utils.multiprocess import Map
 
 
 class DatasetBase(object):
@@ -186,6 +187,41 @@ class DirectoryObjectDitectionDataset(ObjectDitectionDatasetBase):
         self.y_train: List[List]
         self.y_test: List[List]
 
+        self.maps: List[Map] = []
+        self._do = True
+
+    def __del__(self):
+        super().__del__()
+        self.close()
+
+    def close(self):
+        self._do = False
+        for map in self.maps:
+            map.close()
+
+    def _resize_and_relative(
+            self,
+            image_path: str,
+            box: List[List]) -> Tuple[np.array, List[List]]:
+        """Resize and processing images."""
+        image = Image.open(image_path)
+        width, height = image.width, image.height
+        _box = np.array(box)
+
+        _box[:, 0] /= float(width)
+        _box[:, 2] /= float(width)
+        _box[:, 1] /= float(height)
+        _box[:, 3] /= float(height)
+
+        _box = _box[:self.max_boxes]
+        if _box.shape[0] < self.max_boxes:
+            zero_padding = np.zeros((self.max_boxes - _box.shape[0], 5), dtype=_box.dtype)
+            _box = np.vstack((_box, zero_padding))
+
+        image = image.convert('RGB').resize(self.input_shape[:2], Image.BILINEAR)
+        _image = np.asarray(image) / 255.0
+        return _image, _box
+
     def _data_generator(
             self,
             image_paths: List[pathlib.Path],
@@ -202,48 +238,41 @@ class DirectoryObjectDitectionDataset(ObjectDitectionDatasetBase):
             dataset (Generator): dataset generator
 
         """
-        def _resize_and_relative(
-                image: Image,
-                box: List[List]) -> Tuple[np.array, List[List]]:
-            width, height = image.width, image.height
-            _box = np.array(box)
-
-            _box[:, 0] /= float(width)
-            _box[:, 2] /= float(width)
-            _box[:, 1] /= float(height)
-            _box[:, 3] /= float(height)
-
-            _box = _box[:self.max_boxes]
-            if _box.shape[0] < self.max_boxes:
-                zero_padding = np.zeros((self.max_boxes - _box.shape[0], 5), dtype=_box.dtype)
-                _box = np.vstack((_box, zero_padding))
-
-            image = image.convert('RGB').resize(self.input_shape[:2], Image.BILINEAR)
-            _image = np.asarray(image) / 255.0
-            return _image, _box
-
         i = 0
-        images = []
-        boxes = []
-        while True:
-            if i == len(image_paths):
-                i = 0
+        images: List = []
+        boxes: List = []
+        steps = len(image_paths) // self.batch_size
+
+        map = Map(self._resize_and_relative, 3, 200)
+        self.maps.append(map)
+
+        while self._do:
+            if i == steps:
+                if repeat:
+                    i = 0
+            if map.out_queue_empty():
                 if not repeat:
+                    map.close()
                     break
-            try:
-                image = Image.open(image_paths[i])
-                image, box = _resize_and_relative(image, labels[i])
-                images.append(image)
-                boxes.append(box)
-            except Exception:
-                pass
-            i += 1
+            if map.in_queue_empty():
+                if i < steps:
+                    map.put(zip(
+                        image_paths[i*self.batch_size:(i+1)*self.batch_size],
+                        labels[i*self.batch_size:(i+1)*self.batch_size]))
+                    i += 1
+
+            ret = map.get(self.batch_size - len(images))
+            if len(ret) != 0:
+                image, box = zip(*ret)
+                images.extend(image)
+                boxes.extend(box)
+
             if len(images) == self.batch_size:
-                _images = np.array(images)
+                yield np.array(images), np.array(boxes)
                 images = []
-                _boxes = np.array(boxes)
                 boxes = []
-                yield _images, _boxes
+        else:
+            map.close()
 
     def training_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
         """Return training dataset.

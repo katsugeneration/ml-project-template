@@ -1,6 +1,6 @@
 # Copyright 2020 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
-from typing import Callable, List
+from typing import Callable, List, Iterable
 import queue
 from multiprocessing import Queue, Process
 
@@ -32,28 +32,38 @@ class Map:
     def __init__(
             self,
             func: Callable,
-            num: int):
+            num: int,
+            queue_size: int = 1000):
         """Initialize process."""
         self.in_queue: Queue = Queue()
-        self.out_queue: Queue = Queue()
+        self.out_queue: Queue = Queue(maxsize=queue_size)
         self.processes = [
             Process(target=process, args=(func, self.in_queue, self.out_queue))
             for _ in range(num)]
         for p in self.processes:
             p.start()
 
+    def __del__(self):
+        self.close()
+
     def close(self):
         """End processing."""
         self.in_queue.close()
-        self.out_queue.close()
         self.in_queue.join_thread()
+
+        self.out_queue.close()
         self.out_queue.join_thread()
+
         for p in self.processes:
             p.terminate()
+        for p in self.processes:
+            p.join()
+        for p in self.processes:
+            p.close()
 
     def put(
             self,
-            items: List) -> None:
+            items: Iterable) -> None:
         """Put items to process queue."""
         for item in items:
             self.in_queue.put(item)
@@ -69,3 +79,11 @@ class Map:
         except queue.Empty:
             pass
         return items
+
+    def in_queue_empty(self):
+        """Inqueue is empty."""
+        return self.in_queue.empty()
+
+    def out_queue_empty(self):
+        """Outqueue is empty."""
+        return self.out_queue.empty()

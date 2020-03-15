@@ -21,12 +21,15 @@ class TestMultiprocessMap(object):
         time.sleep(1)
         ret = map.get(3)
         eq_(len(ret), 3)
+        eq_(map.out_queue_empty(), False)
         map.close()
 
     def test_get_before(self):
         map = Map(self._process, 3)
         ret = map.get(3)
         eq_(len(ret), 0)
+        eq_(map.in_queue_empty(), True)
+        eq_(map.out_queue_empty(), True)
         map.close()
 
     def test_get_lower(self):
@@ -37,4 +40,6 @@ class TestMultiprocessMap(object):
         time.sleep(1)
         ret = map.get(3)
         eq_(len(ret), 2)
+        eq_(map.in_queue_empty(), True)
+        eq_(map.out_queue_empty(), True)
         map.close()
