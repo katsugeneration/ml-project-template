@@ -236,20 +236,16 @@ class DirectoryObjectDitectionDataset(ObjectDitectionDatasetBase):
             tf.data.TFRecordDataset(tf.data.TFRecordDataset.list_files(str(data_path) + '/*.tfrecord'))
             .map(self._decode_tfrecord)
             .map(self._resize_and_relative)
-            .shuffle(200)
-            .batch(self.batch_size)
+            .shuffle(self.batch_size * 4)
+            .batch(self.batch_size, drop_remainder=True)
         )
 
         if repeat:
             dataset = dataset.repeat()
-
         dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
-        try:
-            for image, label in dataset:
-                yield image, label
-        except Exception:
-            pass
+        while True:
+            yield next(iter(dataset))
 
     def training_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
         """Return training dataset.

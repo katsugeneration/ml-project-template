@@ -2,12 +2,8 @@
 # Licensed under the MIT License.
 from typing import Dict, List, Any
 import pathlib
-from matplotlib import pyplot as plt
 from PIL import Image, ImageDraw
-import seaborn
 import numpy as np
-import pandas as pd
-from sklearn.metrics import confusion_matrix
 from runner.base import RunnerBase
 from dataset.base import ObjectDitectionDatasetBase
 from dataset.mscoco import MSCococDatectionDataset
@@ -52,7 +48,7 @@ class ObjectDetectionTrainer(RunnerBase[ObjectDitectionDatasetBase, KerasObjectD
         x_test, y_pred, y_test = model.inference()
 
         for i, (image, boxes) in enumerate(zip(x_test[:10], y_pred[:10])):
-            image = Image.fromarray((image * 255.0).astype(np.uint8))
+            image = Image.fromarray((image.numpy() * 255.0).astype(np.uint8))
             draw = ImageDraw.Draw(image)
             for box in boxes:
                 x, y, w, h, category = box[:5]
