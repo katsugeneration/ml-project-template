@@ -5,8 +5,9 @@ import shutil
 import pathlib
 from PIL import Image, ImageDraw
 import numpy as np
+import tensorflow as tf
 from nose.tools import ok_, eq_, raises
-from dataset.mscoco import MSCococDatectionDataset
+from dataset.mscoco import MSCococDatectionDataset, convert_tfrecord, image_feature_description, label_feature_description
 
 
 class TestMSCococDatectionDataset(object):
@@ -21,6 +22,31 @@ class TestMSCococDatectionDataset(object):
         ok_(len(dataset.y_train) != 0)
         ok_(isinstance(dataset.y_train[0], list))
         ok_(len(dataset.y_train[0]) != 0)
+
+    def test_convert_tfrecord(self):
+        path = pathlib.Path(__file__).parent.joinpath('after_path')
+        if not path.exists():
+            path.mkdir(parents=True)
+        convert_tfrecord(path, pathlib.Path(__file__).parent.joinpath('data/mscoco/'))
+
+        ok_(path.joinpath('train.tfrecord').exists())
+        ok_(path.joinpath('test.tfrecord').exists())
+
+        dataset = tf.data.TFRecordDataset([str(path.joinpath('train.tfrecord'))])
+        def _parse_image_function(example_proto):
+            return tf.io.parse_single_sequence_example(
+                example_proto,
+                context_features=image_feature_description,
+                sequence_features=label_feature_description)
+        for raw_record in dataset.map(_parse_image_function).take(1):
+            image_feature, label_feature = raw_record
+        image = Image.frombytes('RGB', (image_feature['width'].numpy()[0], image_feature['height'].numpy()[0]), image_feature['image'].numpy())
+        image.save('test.png', "PNG")
+        subprocess.run(('open test.png'), shell=True)
+        label = label_feature['label'].numpy()
+        ok_((np.abs(label - [[493.015, 208.61, 214.97, 297.16, 25], [119.025, 384.085, 132.03, 55.19, 25]]) <= 0.0001).all())
+        shutil.rmtree(path)
+        pathlib.Path('test.png').unlink()
 
     def test_train_generator(self):
         dataset = MSCococDatectionDataset(
