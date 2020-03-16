@@ -213,8 +213,11 @@ class DirectoryObjectDitectionDataset(ObjectDitectionDatasetBase):
 
         height = image_feature['height'][0]
         width = image_feature['width'][0]
-        image = tf.io.decode_raw(image_feature['image'], tf.uint8)
-        image = tf.reshape(image, tf.stack((height, width, 3)))
+        image = tf.reshape(
+            tf.cast(
+                tf.sparse.to_dense(image_feature['image']),
+                dtype=tf.uint8),
+            tf.stack([height, width, 3]))
         label = label_feature['label']
         return image, label
 

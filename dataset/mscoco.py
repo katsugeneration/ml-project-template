@@ -8,6 +8,7 @@ from collections import defaultdict
 import requests
 import tqdm
 from PIL import Image
+import numpy as np
 import tensorflow as tf
 from dataset.base import DirectoryObjectDitectionDataset
 
@@ -34,7 +35,7 @@ class MSCococDatectionDataset(DirectoryObjectDitectionDataset):
     image_feature_description = {
         'height': tf.io.FixedLenFeature([1], tf.int64),
         'width': tf.io.FixedLenFeature([1], tf.int64),
-        'image': tf.io.FixedLenFeature([], tf.string),
+        'image': tf.io.VarLenFeature(tf.int64),
     }
 
     label_feature_description = {
@@ -75,11 +76,11 @@ def make_example(
 
     """
     image = Image.open(image_path).convert('RGB')
-    image_string = image.tobytes()
+    image_array = np.array(image).astype(np.int64).ravel().tolist()
     return tf.train.SequenceExample(context=tf.train.Features(feature={
             'height': tf.train.Feature(int64_list=tf.train.Int64List(value=[image.height])),
             'width': tf.train.Feature(int64_list=tf.train.Int64List(value=[image.width])),
-            'image': tf.train.Feature(bytes_list=tf.train.BytesList(value=[image_string])),
+            'image': tf.train.Feature(int64_list=tf.train.Int64List(value=image_array)),
         }),
         feature_lists=tf.train.FeatureLists(feature_list={
                 'label': tf.train.FeatureList(feature=[

@@ -43,7 +43,8 @@ class TestMSCococDatectionDataset(object):
                 sequence_features=MSCococDatectionDataset.label_feature_description)
         for raw_record in dataset.map(_parse_image_function).take(1):
             image_feature, label_feature = raw_record
-        image = Image.frombytes('RGB', (image_feature['width'].numpy()[0], image_feature['height'].numpy()[0]), image_feature['image'].numpy())
+        image_array = tf.sparse.to_dense(image_feature['image']).numpy().reshape((image_feature['height'].numpy()[0], image_feature['width'].numpy()[0], 3))
+        image = Image.fromarray(image_array.astype(np.uint8))
         image.save('test.png', "PNG")
         subprocess.run(('open test.png'), shell=True)
         label = label_feature['label'].numpy()
