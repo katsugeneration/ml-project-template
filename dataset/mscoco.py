@@ -185,21 +185,18 @@ def convert_tfrecord(
                 except Exception:
                     pass
 
-        def write(key, dataset):
+        def write(key, tensors):
             filename = tf.strings.join([str(tfrecord_path), '/data', tf.strings.as_string(key), '.tfrecord'])
             writer = tf.data.experimental.TFRecordWriter(filename)
-            writer.write(dataset.map(lambda _, x: x))
+            writer.write(tf.data.Dataset.from_tensor_slices(tensors))
             return tf.data.Dataset.from_tensors(filename)
-
-        def key(i, *args):
-            return i // split_num
 
         serialized_dataset = tf.data.Dataset.from_generator(
             generator, output_types=tf.string, output_shapes=())
-        dataset = serialized_dataset.enumerate().apply(
-            tf.data.experimental.group_by_window(
-                key, write, split_num
-            ))
+        dataset = (serialized_dataset
+                   .batch(split_num)
+                   .enumerate()
+                   .interleave(write, num_parallel_calls=tf.data.experimental.AUTOTUNE))
         writer = tf.data.experimental.TFRecordWriter(str(tfrecord_path) + '/files.tfrecord')
         writer.write(dataset)
 

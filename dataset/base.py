@@ -239,9 +239,17 @@ class DirectoryObjectDitectionDataset(ObjectDitectionDatasetBase):
 
         """
         dataset = (
-            tf.data.TFRecordDataset(tf.data.TFRecordDataset.list_files(str(data_path) + '/data*.tfrecord'))
-            .map(self._decode_tfrecord)
-            .map(self._resize_and_relative)
+            tf.data.TFRecordDataset.list_files(str(data_path) + '/data*.tfrecord')
+            .interleave(
+                tf.data.TFRecordDataset,
+                num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            .map(
+                self._decode_tfrecord,
+                num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            .map(
+                self._resize_and_relative,
+                num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            .cache()
             .shuffle(self.batch_size * 4)
             .batch(self.batch_size, drop_remainder=True)
         )
