@@ -74,7 +74,7 @@ def make_example(
         proto (bytes): serialized protocol buffer string.
 
     """
-    image = Image.open(image_path)
+    image = Image.open(image_path).convert('RGB')
     image_string = image.tobytes()
     return tf.train.SequenceExample(context=tf.train.Features(feature={
             'height': tf.train.Feature(int64_list=tf.train.Int64List(value=[image.height])),
@@ -192,7 +192,7 @@ def convert_tfrecord(
             return tf.data.Dataset.from_tensors(filename)
 
         def key(i, *args):
-            return i
+            return i // split_num
 
         serialized_dataset = tf.data.Dataset.from_generator(
             generator, output_types=tf.string, output_shapes=())
