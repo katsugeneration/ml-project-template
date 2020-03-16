@@ -42,7 +42,6 @@ class MSCococDatectionDataset(DirectoryObjectDitectionDataset):
         'label': tf.io.FixedLenSequenceFeature([5], tf.float32),
     }
 
-    # TOOD: tfrecord OR pickleに変換して読み込むようにする
     def __init__(
             self,
             train_image_directory: pathlib.Path,

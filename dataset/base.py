@@ -163,6 +163,9 @@ class DirectoryObjectDitectionDataset(ObjectDitectionDatasetBase):
 
     """
 
+    image_feature_description: dict
+    label_feature_description: dict
+
     def __init__(
             self,
             train_data_directory: str,
