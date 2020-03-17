@@ -55,11 +55,14 @@ class Map:
         self.out_queue.join_thread()
 
         for p in self.processes:
-            p.terminate()
+            if p.is_alive():
+                p.terminate()
         for p in self.processes:
-            p.join()
+            if p.is_alive():
+                p.join()
         for p in self.processes:
-            p.close()
+            if p.is_alive():
+                p.close()
 
     def put(
             self,
