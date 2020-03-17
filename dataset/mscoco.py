@@ -1,16 +1,17 @@
 # Copyright 2020 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
-from typing import Tuple, List
+from typing import Tuple
+import time
 import json
 import pathlib
 import zipfile
 from collections import defaultdict
-import concurrent.futures
 import requests
 import tqdm
 from PIL import Image
 import tensorflow as tf
 from dataset.base import DirectoryObjectDitectionDataset
+from dataset.utils.multiprocess import Map
 
 BASE_URL = 'http://images.cocodataset.org/zips/'
 BASE_ANNOTATION_URL = 'http://images.cocodataset.org/annotations/'
@@ -181,15 +182,20 @@ def convert_tfrecord(
         keys = set(images.keys()) & set(boxes.keys())
 
         def generator():
-            with concurrent.futures.ProcessPoolExecutor(5) as executor:
-                for serialized_string in executor.map(make_example, [(images[k], boxes[k]) for k in keys]):
+            map = Map(make_example, 5, queue_size=split_num*2)
+            map.put([[(images[k], boxes[k])] for k in keys])
+            time.sleep(1)
+            while not (map.in_queue_empty() and map.out_queue_empty()):
+                if not map.out_queue_empty():
+                    serialized_string = map.get(1)[0]
                     if len(serialized_string) != 0:
                         yield serialized_string
+            map.close()
 
-        def write(key, dataset):
+        def write(key, tensors):
             filename = tf.strings.join([str(tfrecord_path), '/data', tf.strings.as_string(key), '.tfrecord'])
             writer = tf.data.experimental.TFRecordWriter(filename)
-            writer.write(dataset.map(lambda _, x: x))
+            writer.write(tf.data.Dataset.from_tensor_slices(tensors))
             return tf.data.Dataset.from_tensors(filename)
 
         def key(i, *args):
@@ -198,11 +204,9 @@ def convert_tfrecord(
         serialized_dataset = tf.data.Dataset.from_generator(
             generator, output_types=tf.string, output_shapes=())
         dataset = (serialized_dataset
+                   .batch(split_num)
                    .enumerate()
-                   .apply(
-                        tf.data.experimental.group_by_window(
-                            key, write, split_num
-                        )))
+                   .interleave(write, num_parallel_calls=tf.data.experimental.AUTOTUNE))
         writer = tf.data.experimental.TFRecordWriter(str(tfrecord_path) + '/files.tfrecord')
         writer.write(dataset)
 
