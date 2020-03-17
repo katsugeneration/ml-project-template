@@ -5,6 +5,7 @@ import json
 import pathlib
 import zipfile
 from collections import defaultdict
+import concurrent.futures
 import requests
 import tqdm
 from PIL import Image
@@ -61,9 +62,7 @@ class MSCococDatectionDataset(DirectoryObjectDitectionDataset):
         self.x_test = list(test_image_directory.glob('*.*'))
 
 
-def make_example(
-        image_path: str,
-        label: List[float]) -> bytes:
+def make_example(args) -> bytes:
     """Convert image and label prot string.
 
     Args:
@@ -74,18 +73,22 @@ def make_example(
         proto (bytes): serialized protocol buffer string.
 
     """
-    image = Image.open(image_path).convert('RGB')
-    image_array = np.array(image).astype(np.int64).ravel().tolist()
-    return tf.train.SequenceExample(context=tf.train.Features(feature={
-            'height': tf.train.Feature(int64_list=tf.train.Int64List(value=[image.height])),
-            'width': tf.train.Feature(int64_list=tf.train.Int64List(value=[image.width])),
-            'image': tf.train.Feature(int64_list=tf.train.Int64List(value=image_array)),
-        }),
-        feature_lists=tf.train.FeatureLists(feature_list={
-                'label': tf.train.FeatureList(feature=[
-                    tf.train.Feature(float_list=tf.train.FloatList(value=l))
-                    for l in label])
-        })).SerializeToString()
+    image_path, label = args
+    try:
+        image = Image.open(image_path).convert('RGB')
+        image_array = np.array(image).astype(np.int64).ravel().tolist()
+        return tf.train.SequenceExample(context=tf.train.Features(feature={
+                'height': tf.train.Feature(int64_list=tf.train.Int64List(value=[image.height])),
+                'width': tf.train.Feature(int64_list=tf.train.Int64List(value=[image.width])),
+                'image': tf.train.Feature(int64_list=tf.train.Int64List(value=image_array)),
+            }),
+            feature_lists=tf.train.FeatureLists(feature_list={
+                    'label': tf.train.FeatureList(feature=[
+                        tf.train.Feature(float_list=tf.train.FloatList(value=l))
+                        for l in label])
+            })).SerializeToString()
+    except Exception:
+        return b""
 
 
 def download(
@@ -179,24 +182,28 @@ def convert_tfrecord(
         keys = set(images.keys()) & set(boxes.keys())
 
         def generator():
-            for k in keys:
-                try:
-                    yield make_example(images[k], boxes[k])
-                except Exception:
-                    pass
+            with concurrent.futures.ProcessPoolExecutor(5) as executor:
+                for serialized_string in executor.map(make_example, [(images[k], boxes[k]) for k in keys]):
+                    if len(serialized_string) != 0:
+                        yield serialized_string
 
-        def write(key, tensors):
+        def write(key, dataset):
             filename = tf.strings.join([str(tfrecord_path), '/data', tf.strings.as_string(key), '.tfrecord'])
             writer = tf.data.experimental.TFRecordWriter(filename)
-            writer.write(tf.data.Dataset.from_tensor_slices(tensors))
+            writer.write(dataset.map(lambda _, x: x))
             return tf.data.Dataset.from_tensors(filename)
+
+        def key(i, *args):
+            return i // split_num
 
         serialized_dataset = tf.data.Dataset.from_generator(
             generator, output_types=tf.string, output_shapes=())
         dataset = (serialized_dataset
-                   .batch(split_num)
                    .enumerate()
-                   .interleave(write, num_parallel_calls=tf.data.experimental.AUTOTUNE))
+                   .apply(
+                        tf.data.experimental.group_by_window(
+                            key, write, split_num
+                        )))
         writer = tf.data.experimental.TFRecordWriter(str(tfrecord_path) + '/files.tfrecord')
         writer.write(dataset)
 
