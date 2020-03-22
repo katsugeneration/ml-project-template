@@ -10,7 +10,7 @@ from dataset.base import BinaryImageClassifierDataset, ObjectDitectionDatasetBas
 class DummyDataset(BinaryImageClassifierDataset):
     """Dummy dataset class for test."""
 
-    input_shape = (1, 1, 1)
+    input_shape = (32, 32, 3)
     category_nums = 2
 
     def __init__(

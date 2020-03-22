@@ -3,16 +3,29 @@
 from nose.tools import ok_, eq_
 import numpy as np
 from model.yolo import YoloV2
-from tests.utils.dummy_dataset import OjbjectDetectionDummyDataset
+from tests.utils.dummy_dataset import OjbjectDetectionDummyDataset, DummyDataset
 
 
 class TestYoloV2(object):
     def test_init(self):
         yolo = YoloV2(dataset=OjbjectDetectionDummyDataset())
         eq_(yolo.model.outputs[0].shape.as_list(), [None, 13, 13, 5 * (2 + 5)])
+        yolo = YoloV2(dataset=OjbjectDetectionDummyDataset(), tiny=False)
+        eq_(yolo.model.outputs[0].shape.as_list(), [None, 13, 13, 5 * (2 + 5)])
+        yolo = YoloV2(dataset=DummyDataset(), classification=True)
+        eq_(yolo.model.outputs[0].shape.as_list(), [None, DummyDataset.category_nums])
+        yolo = YoloV2(dataset=OjbjectDetectionDummyDataset(), tiny=False, classification=True)
+        eq_(yolo.model.outputs[0].shape.as_list(), [None, DummyDataset.category_nums])
 
     def test_train(self):
         yolo = YoloV2(dataset=OjbjectDetectionDummyDataset())
+        history = yolo.train()
+        ok_('loss' in history)
+
+    def test_train_classification(self):
+        dataset = DummyDataset()
+        DummyDataset()
+        yolo = YoloV2(dataset=DummyDataset(), classification=True)
         history = yolo.train()
         ok_('loss' in history)
 

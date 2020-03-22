@@ -114,6 +114,7 @@ class YoloBottleneckBlock(tf.keras.layers.Layer):
         return x
 
 
+# TODO Load pretrained model and Open Images pretrained
 class YoloV2(KerasObjectDetectionBase):
     """YOLO v2 implementation with darknet-19.
 
@@ -123,6 +124,8 @@ class YoloV2(KerasObjectDetectionBase):
         weight_decay (float): weight decay's weight.
         resize_shape (Tuple[int]): model input shape.
         iou_threshold (float): detection iou threshold.
+        tiny (bool): whether or not tiny yolo.
+        classification (bool): whether or not pretrained classification.
 
     """
 
@@ -132,6 +135,7 @@ class YoloV2(KerasObjectDetectionBase):
             resize_shape: Tuple[int, int] = (416, 416),
             iou_threshold: float = 0.6,
             tiny: bool = True,
+            classification: bool = False,
             **kwargs: Any) -> None:
         """Intialize parameter and build model."""
         super(YoloV2, self).__init__(**kwargs)
@@ -167,6 +171,7 @@ class YoloV2(KerasObjectDetectionBase):
                     kernel=3,
                     stride=1,
                     weight_decay=weight_decay)(x)
+            _classification_out = x
             x = YoloConvBlock(
                     filters=tiny_filters[5],
                     kernel=3,
@@ -208,6 +213,8 @@ class YoloV2(KerasObjectDetectionBase):
                 if i == 4:
                     _fine_grained = x
                     x = tf.keras.layers.MaxPool2D()(x)
+                elif i == 5:
+                    _classification_out = x
 
             # normal path
             x = YoloConvBlock(
@@ -236,14 +243,24 @@ class YoloV2(KerasObjectDetectionBase):
                     stride=1,
                     weight_decay=weight_decay)(x)
 
-        outputs = tf.keras.layers.Conv2D(
-                filters=len(self.anchors) * (self.dataset.category_nums + 5),
-                kernel_size=1,
-                strides=1,
-                padding='same',
-                kernel_initializer="he_normal",
-                kernel_regularizer=tf.keras.regularizers.l2(weight_decay),
-                use_bias=True)(x)
+        if classification:
+            x = tf.keras.layers.GlobalAveragePooling2D()(_classification_out)
+            outputs = tf.keras.layers.Dense(
+                        units=self.dataset.category_nums,
+                        activation=tf.nn.softmax,
+                        kernel_initializer="he_normal",
+                        kernel_regularizer=tf.keras.regularizers.l2(weight_decay),
+                        use_bias=True)(x)
+            self._loss = tf.keras.losses.categorical_crossentropy
+        else:
+            outputs = tf.keras.layers.Conv2D(
+                        filters=len(self.anchors) * (self.dataset.category_nums + 5),
+                        kernel_size=1,
+                        strides=1,
+                        padding='same',
+                        kernel_initializer="he_normal",
+                        kernel_regularizer=tf.keras.regularizers.l2(weight_decay),
+                        use_bias=True)(x)
 
         self.model = tf.keras.Model(inputs=inputs, outputs=outputs)
         self.setup()
@@ -446,12 +463,14 @@ class YoloV2(KerasObjectDetectionBase):
         pred_detect_masks = tf.cast(best_ious > self.iou_threshold, dtype=best_ious.dtype)
         no_object_loss = (1 - pred_detect_masks) * (1 - detect_masks) * tf.math.square(-pred_confidence)
         objects_loss = detect_masks * tf.math.square(1 - pred_confidence)
-        confidence_loss = tf.math.reduce_mean(5 * objects_loss + no_object_loss)
+        confidence_loss = tf.math.reduce_sum(5 * objects_loss + no_object_loss)
+        confidence_loss /= tf.reduce_sum(detect_masks)
 
         # calc classification_loss
         matching_classes = tf.cast(matching_true_boxes[..., 4], dtype=tf.int32)
         matching_classes = tf.one_hot(matching_classes, self.dataset.category_nums)
-        classification_loss = tf.math.reduce_mean(detect_masks * tf.math.square(matching_classes - pred_class_prob))
+        classification_loss = tf.math.reduce_sum(detect_masks * tf.math.square(matching_classes - pred_class_prob))
+        classification_loss /= tf.reduce_sum(detect_masks)
 
         # Calc coordinates_loss
         # x and y are in the range [0, 1] that mean difference ratio to grid left corner.
@@ -459,7 +478,8 @@ class YoloV2(KerasObjectDetectionBase):
         matching_boxes = matching_true_boxes[..., 0:4]
         features = tf.reshape(pred, (-1, pred.shape[1], pred.shape[2], len(self.anchors), 5 + self.dataset.category_nums))
         pred_boxes = tf.concat([tf.sigmoid(features[..., 0:2]), features[..., 2:4]], axis=-1)
-        coordinates_loss = tf.math.reduce_mean(detect_masks * tf.math.square(matching_boxes - pred_boxes))
+        coordinates_loss = tf.math.reduce_sum(detect_masks * tf.math.square(matching_boxes - pred_boxes))
+        coordinates_loss /= tf.reduce_sum(detect_masks)
 
         loss = confidence_loss + classification_loss + coordinates_loss
         return loss
@@ -473,6 +493,9 @@ class YoloV2(KerasObjectDetectionBase):
 
         boxes = tf.boolean_mask(boxes, prediction_mask)
         scores = tf.boolean_mask(box_class_scores, prediction_mask)
+        print(tf.reduce_max(box_confidence).numpy())
+        print(tf.reduce_max(box_class_scores).numpy())
+        print(scores.shape)
         classes = tf.boolean_mask(box_classes, prediction_mask)
         return boxes, scores, classes
 
@@ -485,7 +508,8 @@ class YoloV2(KerasObjectDetectionBase):
             gt (List[Any]): ground truth data.
 
         """
-        (x_test, y_test) = next(self.dataset.eval_data_generator())
+        generator = self.dataset.eval_data_generator()
+        (x_test, y_test) = next(generator)
         predicts = self.model.predict(x_test)
 
         suppresed_predicts = []
@@ -506,4 +530,5 @@ class YoloV2(KerasObjectDetectionBase):
             classes = tf.expand_dims(tf.gather(classes, suppresed_indices), axis=-1)
             preds = tf.concat([boxes, scores, tf.cast(classes, dtype=boxes.dtype)], axis=-1)
             suppresed_predicts.append(preds.numpy())
+        del generator
         return x_test, np.array(suppresed_predicts), y_test
