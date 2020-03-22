@@ -1,6 +1,8 @@
 # Copyright 2019 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
 from nose.tools import ok_, eq_
+import pathlib
+import shutil
 import numpy as np
 from model.yolo import YoloV2
 from tests.utils.dummy_dataset import OjbjectDetectionDummyDataset, DummyDataset
@@ -23,11 +25,21 @@ class TestYoloV2(object):
         ok_('loss' in history)
 
     def test_train_classification(self):
-        dataset = DummyDataset()
-        DummyDataset()
         yolo = YoloV2(dataset=DummyDataset(), classification=True)
         history = yolo.train()
         ok_('loss' in history)
+
+    def test_load_pretrained_model(self):
+        path = pathlib.Path(__file__).parent.joinpath('test_path')
+        path.mkdir(parents=True, exist_ok=True)
+        yolo = YoloV2(dataset=DummyDataset(), classification=True, epochs=1)
+        history = yolo.train()
+        yolo.save(path.joinpath('model'))
+        weight = yolo.model.layers[2].weights[0]
+
+        yolo = YoloV2(dataset=OjbjectDetectionDummyDataset(), restore_path=path.joinpath('model'))
+        ok_((np.abs(weight - yolo.model.layers[2].weights[0]) <= 1e-5).all())
+        shutil.rmtree(path)
 
     def test_preprocess_gt_boxes(self):
         yolo = YoloV2(dataset=OjbjectDetectionDummyDataset())
