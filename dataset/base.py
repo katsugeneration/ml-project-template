@@ -1,7 +1,8 @@
 # Copyright 2019 Katsuya Shimabukuro. All rights reserved.
 # Licensed under the MIT License.
-from typing import Tuple, Any, Generator, Union, List, Optional
+from typing import Tuple, Any, Generator, Union, List, Optional, Dict, Iterable
 import pathlib
+import time
 import random
 import multiprocessing
 import pandas as pd
@@ -9,6 +10,7 @@ import numpy as np
 from PIL import Image
 import tensorflow as tf
 from dataset.mixup import MixupGenerator
+from dataset.utils.multiprocess import Map
 
 
 class DatasetBase(object):
@@ -135,6 +137,159 @@ class BinaryImageClassifierDataset(ImageClassifierDatasetBase):
         y_test = tf.keras.utils.to_categorical(self.y_test)
         self.eval_steps_per_epoch = len(self.x_test) // self.batch_size
         return self.eval_data_gen.flow(self.x_test, y=y_test, batch_size=self.batch_size)
+
+
+class TfrecordDatasetMixin(object):
+    """Tfrecord used datasets mixin."""
+
+    image_feature_description: dict
+    label_feature_description: dict
+
+    @classmethod
+    def make_example(cls, args):
+        """Make tfrecord example."""
+        raise NotImplementedError
+
+    @classmethod
+    def _convert(
+            cls,
+            images: Dict[str, str],
+            labels: Dict[str, Any],
+            keys: Iterable,
+            tfrecord_path: pathlib.Path,
+            split_num: int):
+        """Convert to tfrecord.
+
+        Args:
+            images (dict): image id to path dictionary.
+            labels (dict): images id to label dictionary.
+            keys (list): images id list.
+            tfrecord_path (Path): save path.
+            split_num (int): images nums per one tfrecord file.
+
+        """
+        def generator():
+            map = Map(cls.make_example, 5, queue_size=split_num*2)
+            map.put([[(images[k], labels[k])] for k in keys])
+            time.sleep(1)
+            while not (map.in_queue_empty() and map.out_queue_empty()):
+                if not map.out_queue_empty():
+                    serialized_string = map.get(1)[0]
+                    if len(serialized_string) != 0:
+                        yield serialized_string
+            map.close()
+
+        def write(key, tensors):
+            filename = tf.strings.join([str(tfrecord_path), '/data', tf.strings.as_string(key), '.tfrecord'])
+            writer = tf.data.experimental.TFRecordWriter(filename)
+            writer.write(tf.data.Dataset.from_tensor_slices(tensors))
+            return tf.data.Dataset.from_tensors(filename)
+
+        def key(i, *args):
+            return i // split_num
+
+        serialized_dataset = tf.data.Dataset.from_generator(
+            generator, output_types=tf.string, output_shapes=())
+        dataset = (serialized_dataset
+                   .batch(split_num)
+                   .enumerate()
+                   .interleave(write, num_parallel_calls=tf.data.experimental.AUTOTUNE))
+        writer = tf.data.experimental.TFRecordWriter(str(tfrecord_path) + '/files.tfrecord')
+        writer.write(dataset)
+
+    def _preprocess(
+            self,
+            image: tf.Tensor,
+            label: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
+        """Preprocess image and label."""
+        raise NotImplementedError
+
+    def _decode_tfrecord(
+            self,
+            example_proto):
+        image_feature, label_feature = tf.io.parse_single_sequence_example(
+                example_proto,
+                context_features=self.image_feature_description,
+                sequence_features=self.label_feature_description)
+
+        height = image_feature['height'][0]
+        width = image_feature['width'][0]
+        image = tf.io.decode_raw(image_feature['image'], tf.uint8)
+        image = tf.reshape(image, tf.stack((height, width, 3)))
+        label = label_feature['label']
+        return image, label
+
+    def _data_generator(
+            self,
+            data_path: pathlib.Path,
+            batch_size: int,
+            repeat: bool = True) -> Generator:
+        """Return training dataset.
+
+        Args:
+            data_path (pathlib.Path): data directory path.
+            repeat (bool): whether or not to repeat data generate.
+
+        Return:
+            dataset (Generator): dataset generator
+
+        """
+        dataset = (
+            tf.data.TFRecordDataset.list_files(str(data_path) + '/data*.tfrecord')
+            .interleave(tf.data.TFRecordDataset)
+            .map(self._decode_tfrecord)
+            .map(self._preprocess)
+            .batch(batch_size, drop_remainder=True)
+        )
+
+        if repeat:
+            dataset = dataset.repeat()
+
+        while True:
+            yield next(iter(dataset))
+
+
+class DirectoryImageClassifierDataset(ImageClassifierDatasetBase, TfrecordDatasetMixin):
+    """Directory loaded image classification dataset.
+
+    Args:
+        train_data_directory (str): path to training data directory.
+        test_data_directory (str): path to test data directory.
+
+    """
+
+    def __init__(
+            self,
+            train_data_directory: str,
+            test_data_directory: str,
+            max_boxes: int = 5,
+            **kwargs: Any) -> None:
+        """Initilize params."""
+        super(DirectoryImageClassifierDataset, self).__init__(**kwargs)
+        self.train_data_directory = pathlib.Path(train_data_directory)
+        self.test_data_directory = pathlib.Path(test_data_directory)
+        self.x_train: List
+        self.x_test: List
+
+    def training_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
+        """Return training dataset.
+
+        Return:
+            dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
+
+        """
+        self.steps_per_epoch = len(self.x_train) // self.batch_size
+        return self._data_generator(self.train_data_directory, self.batch_size, repeat=True)
+
+    def eval_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
+        """Return test dataset.
+
+        Return:
+            dataset (Union[tf.keras.utils.Sequence, Generator]): dataset generator
+
+        """
+        self.eval_steps_per_epoch = len(self.x_test) // self.batch_size
+        return self._data_generator(self.test_data_directory, self.batch_size, repeat=True)
 
 
 class ObjectDitectionDatasetBase(ImageClassifierDatasetBase):
