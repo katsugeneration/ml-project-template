@@ -9,6 +9,7 @@ import luigi
 import mlflow
 import yaml
 from projects.base import ProjectBase
+from projects.utils.python_utils import get_attribute
 from projects.utils.mlflow_utils import search_run_directory
 from projects.data import create_data_prepare, search_preprocess_directory
 
@@ -56,8 +57,7 @@ class RunOnceProject(ProjectBase):
             self.preprocess_params['update_task'] = ''
 
         self.before_project = create_data_prepare(
-                                {k: getattr(importlib.import_module(".".join(v.split('.')[:-1])), v.split('.')[-1])
-                                    for k, v in self.preprocess_params['projects'].items()},
+                                {k: get_attribute(v) for k, v in self.preprocess_params['projects'].items()},
                                 self.preprocess_params['parameters'],
                                 self.preprocess_params['update_task'])
 

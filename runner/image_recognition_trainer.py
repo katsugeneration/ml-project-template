@@ -13,12 +13,14 @@ from dataset.mnist import MnistDataset
 from dataset.cifar10 import Cifar10Dataset
 from dataset.cifar100 import Cifar100Dataset
 from dataset.mnist_from_raw import MnistFromRawDataset
+from dataset.open_images import OpenImagesClassificationDataset
 from model.base import KerasClassifierBase
 from model.fcnn import FCNNClassifier
 from model.cnn import ConvolutionalNet
 from model.resnet import ResNet
 from model.resnet101 import ResNet101
 from model.efficientnet import EfficientNet
+from model.yolo import YoloV2
 
 
 class ImageRecognitionTrainer(RunnerBase[BinaryImageClassifierDataset, KerasClassifierBase]):
@@ -31,6 +33,7 @@ class ImageRecognitionTrainer(RunnerBase[BinaryImageClassifierDataset, KerasClas
             'cifar10': Cifar10Dataset,
             'cifar100': Cifar100Dataset,
             'mnistraw': MnistFromRawDataset,
+            'openimages': OpenImagesClassificationDataset,
         }
 
         self.models = {
@@ -39,6 +42,7 @@ class ImageRecognitionTrainer(RunnerBase[BinaryImageClassifierDataset, KerasClas
             'resnet': ResNet,
             'resnet101': ResNet101,
             'efficientnet': EfficientNet,
+            'yolo': YoloV2,
         }
 
     def _run(

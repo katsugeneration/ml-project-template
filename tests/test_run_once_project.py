@@ -91,3 +91,36 @@ class TestRunOnceProject(object):
         ok_(run_result)
         ok_(project.output().exists())
         ok_(project.artifact_directory.joinpath('model.h5').exists())
+
+    def test_run_once_with_before_preprocess_class_method(self):
+        _save_conf(
+            {
+                'epochs': 1,
+            },
+            {
+                'batch_size': 2,
+                'adjusted_shape': (128, 128),
+                'train_image_directory': '{{ __import__("pathlib").Path("%s") }}' % pathlib.Path(__file__).parent.joinpath('data/openimages/train'),
+                'test_image_directory': '{{ __import__("pathlib").Path("%s") }}' % pathlib.Path(__file__).parent.joinpath('data/openimages/validation'),
+                'train_data_directory': '{{ search_preprocess_directory("dataset.open_images.OpenImagesClassificationDataset.convert_tfrecord", preprocess_params).joinpath("train") }}',
+                'test_data_directory': '{{ search_preprocess_directory("dataset.open_images.OpenImagesClassificationDataset.convert_tfrecord", preprocess_params).joinpath("test") }}',
+            },
+            {
+                'projects': OrderedDict(**{
+                    'Convert': 'dataset.open_images.OpenImagesClassificationDataset.convert_tfrecord',
+                }),
+                'parameters': {
+                    'before_artifact_directory': '{{ __import__("pathlib").Path("%s") }}' % pathlib.Path(__file__).parent.joinpath('data/openimages'),
+                    'split_num': 1,
+                    'name': 'openimages'
+                }
+            })
+        project = RunOnceProject(**{
+            'runner': 'image_recognition_trainer',
+            'dataset': 'openimages',
+            'param_path': CONF_PATH,
+        })
+        run_result = luigi.build([project], worker_scheduler_factory=DummyFactory())
+        ok_(run_result)
+        ok_(project.output().exists())
+        ok_(project.artifact_directory.joinpath('model.h5').exists())

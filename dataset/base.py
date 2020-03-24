@@ -281,6 +281,25 @@ class DirectoryImageClassifierDataset(ImageClassifierDatasetBase, TfrecordDatase
         self.steps_per_epoch = len(self.x_train) // self.batch_size
         return self._data_generator(self.train_data_directory, self.batch_size, repeat=True)
 
+    def eval_data(self) -> Tuple[np.array, np.array]:
+        """Return evaluation dataset.
+
+        Return:
+            dataset (Tuple[np.array, np.array]): evaluation dataset pair
+
+        """
+        images: List[np.array] = []
+        labels: List[np.array] = []
+        generator = self._data_generator(self.test_data_directory, self.batch_size, repeat=False)
+        try:
+            _images, _labels = next(generator)
+            images.extend(_images)
+            labels.extend(_labels)
+        except StopIteration:
+            pass
+
+        return np.array(images), np.array(labels)
+
     def eval_data_generator(self) -> Union[tf.keras.utils.Sequence, Generator]:
         """Return test dataset.
 

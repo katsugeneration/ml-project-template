@@ -2,10 +2,11 @@
 # Licensed under the MIT License.
 from typing import Any, Callable, Dict, List, Optional
 import re
-import importlib
 import pathlib
+from multiprocessing import Process
 from projects.base import ProjectBase
 from projects.utils import mlflow_utils
+from projects.utils.python_utils import get_attribute
 
 
 class DataPrepareProject(ProjectBase):
@@ -153,7 +154,7 @@ def search_preprocess_directory(
         path (pathlib.Path): artifact directory path.
 
     """
-    run_func = getattr(importlib.import_module(".".join(func_name.split('.')[:-1])), func_name.split('.')[-1])
+    run_func = get_attribute(func_name)
     return mlflow_utils.run_to_run_directory(
                 mlflow_utils.search_run_object(
                     _get_runname(run_func),
