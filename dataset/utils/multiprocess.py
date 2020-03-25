@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 from typing import Callable, List, Iterable
 import queue
+from contextlib import ContextDecorator
 from multiprocessing import Queue, Process
 
 
@@ -26,7 +27,7 @@ def process(
         out_queue.put(ret)
 
 
-class Map:
+class Map(ContextDecorator):
     """Multiprocessing map class."""
 
     def __init__(
@@ -42,6 +43,13 @@ class Map:
             for _ in range(num)]
         for p in self.processes:
             p.start()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+        return False
 
     def __del__(self):
         self.close()

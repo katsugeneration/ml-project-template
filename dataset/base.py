@@ -169,15 +169,14 @@ class TfrecordDatasetMixin(object):
 
         """
         def generator():
-            map = Map(cls.make_example, 5, queue_size=split_num*2)
-            map.put([[(images[k], labels[k])] for k in keys])
-            time.sleep(1)
-            while not (map.in_queue_empty() and map.out_queue_empty()):
-                if not map.out_queue_empty():
-                    serialized_string = map.get(1)[0]
-                    if len(serialized_string) != 0:
-                        yield serialized_string
-            map.close()
+            with Map(cls.make_example, 5, queue_size=split_num*2) as map:
+                map.put([[(images[k], labels[k])] for k in keys])
+                time.sleep(1)
+                while not (map.in_queue_empty() and map.out_queue_empty()):
+                    if not map.out_queue_empty():
+                        serialized_string = map.get(1)[0]
+                        if len(serialized_string) != 0:
+                            yield serialized_string
 
         def write(key, tensors):
             filename = tf.strings.join([str(tfrecord_path), '/data', tf.strings.as_string(key), '.tfrecord'])
