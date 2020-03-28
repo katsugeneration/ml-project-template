@@ -92,15 +92,9 @@ class RunOnceProject(ProjectBase):
 
         history = None
         while history is None:
-            results: Queue = Queue()
-            p = Process(target=self.__run_once, args=(c(), results))
-            p.start()
-            p.join()
-
             try:
-                history = results.get(False)
-            except queue.Empty:
-                history = None
+                history = c().run(self.model, self.dataset, self.model_params, self.dataset_params, self.artifact_directory)
+            except Exception:
                 pass
 
         # save to mlflow

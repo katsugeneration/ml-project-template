@@ -42,7 +42,7 @@ class TestRunOnceProject(object):
         run_result = luigi.build([project], worker_scheduler_factory=DummyFactory())
         ok_(run_result)
         ok_(project.output().exists())
-        ok_(project.artifact_directory.joinpath('model.h5').exists())
+        ok_(project.artifact_directory.joinpath('model').exists())
 
     def test_run_once_add_preprocess(self):
         _save_conf(
@@ -66,7 +66,7 @@ class TestRunOnceProject(object):
         run_result = luigi.build([project], worker_scheduler_factory=DummyFactory())
         ok_(run_result)
         ok_(project.output().exists())
-        ok_(project.artifact_directory.joinpath('model.h5').exists())
+        ok_(project.artifact_directory.joinpath('model').exists())
 
     def test_run_once_with_before_preprocess(self):
         _save_conf(
@@ -90,7 +90,7 @@ class TestRunOnceProject(object):
         run_result = luigi.build([project], worker_scheduler_factory=DummyFactory())
         ok_(run_result)
         ok_(project.output().exists())
-        ok_(project.artifact_directory.joinpath('model.h5').exists())
+        ok_(project.artifact_directory.joinpath('model').exists())
 
     def test_run_once_with_before_preprocess_class_method(self):
         _save_conf(
@@ -123,4 +123,4 @@ class TestRunOnceProject(object):
         run_result = luigi.build([project], worker_scheduler_factory=DummyFactory())
         ok_(run_result)
         ok_(project.output().exists())
-        ok_(project.artifact_directory.joinpath('model.h5').exists())
+        ok_(project.artifact_directory.joinpath('model').exists())

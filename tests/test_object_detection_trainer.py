@@ -33,5 +33,5 @@ class TestObjectDetectionTrainer(object):
                     },
                     path)
 
-        ok_(path.joinpath('model.h5').exists())
+        ok_(path.joinpath('model').exists())
         shutil.rmtree(data_path)

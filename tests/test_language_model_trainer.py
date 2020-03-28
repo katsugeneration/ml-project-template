@@ -25,4 +25,4 @@ class TestLanguageModelTrainer(object):
             },
             path)
 
-        ok_(path.joinpath('model.h5').exists())
+        ok_(path.joinpath('model').exists())

@@ -63,14 +63,14 @@ class ImageRecognitionTrainer(RunnerBase[BinaryImageClassifierDataset, KerasClas
         """
         # run learning
         history = model.train()
-        model.save(log_path.joinpath('model.h5'))
+        model.save(log_path.joinpath('model'))
 
         # save results
         x_test, y_pred, y_test = model.inference()
         y_test = np.argmax(y_test, axis=1)
         y_pred = np.argmax(y_pred, axis=1)
 
-        labels = list(range(10))
+        labels = list(range(dataset.category_nums))
         cm = confusion_matrix(y_test, y_pred, labels=labels)
         df_cm = pd.DataFrame(cm, index=labels, columns=labels)
         fig = plt.figure(figsize=(12.8, 7.2))

@@ -42,7 +42,7 @@ class ImageSegmentationTrainer(RunnerBase[ImageSegmentationDatasetBase, KerasIma
         """
         # run learning
         history = model.train()
-        model.save(log_path.joinpath('model.h5'))
+        model.save(log_path.joinpath('model'))
 
         # save results
         x_test, y_pred, y_test = model.inference()

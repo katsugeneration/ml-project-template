@@ -16,4 +16,4 @@ class TestImageRecognitionTrainer(object):
         runner = ImageRecognitionTrainer()
         history = runner.run('fcnn', 'mnist', {'epochs': 1}, {'batch_size': 128}, path)
 
-        ok_(path.joinpath('model.h5').exists())
+        ok_(path.joinpath('model').exists())
