@@ -114,7 +114,6 @@ class YoloBottleneckBlock(tf.keras.layers.Layer):
         return x
 
 
-# TODO Load pretrained model and Open Images pretrained
 class YoloV2(KerasObjectDetectionBase):
     """YOLO v2 implementation with darknet-19.
 
@@ -143,6 +142,7 @@ class YoloV2(KerasObjectDetectionBase):
         self.resize_shape = resize_shape
         self.iou_threshold = iou_threshold
         self.tiny = tiny
+        self.classification = classification
         self.anchors = [(0.57273, 0.677385), (1.87446, 2.06253), (3.33843, 5.47434), (7.88282, 3.52778), (9.77052, 9.16828)]
         filters = [32, 64, 128, 256, 512, 1024]
         tiny_filters = [16, 32, 64, 128, 256, 512, 1024]
@@ -247,11 +247,11 @@ class YoloV2(KerasObjectDetectionBase):
             x = tf.keras.layers.GlobalAveragePooling2D()(_classification_out)
             outputs = tf.keras.layers.Dense(
                         units=self.dataset.category_nums,
-                        activation=tf.nn.softmax,
+                        activation=tf.sigmoid,
                         kernel_initializer="he_normal",
                         kernel_regularizer=tf.keras.regularizers.l2(weight_decay),
                         use_bias=True)(x)
-            self._loss = tf.keras.losses.categorical_crossentropy
+            self._loss = self._multi_label_classification_loss
         else:
             outputs = tf.keras.layers.Conv2D(
                         filters=len(self.anchors) * (self.dataset.category_nums + 5),
@@ -264,6 +264,21 @@ class YoloV2(KerasObjectDetectionBase):
 
         self.model = tf.keras.Model(inputs=inputs, outputs=outputs)
         self.setup()
+
+    @property
+    def metrics(self):
+        if self.classification:
+            return [tf.keras.metrics.Recall(), tf.keras.metrics.Precision()]
+        return []
+
+    def _multi_label_classification_loss(
+            self,
+            label: tf.Variable,
+            pred: tf.Variable) -> float:
+        """Loass for classification."""
+        loss = tf.nn.sigmoid_cross_entropy_with_logits(label, tf.math.log(pred + 1e-6) - tf.math.log(1 - pred + 1e-6))
+        loss = (20 * label + (1 - label)) * loss
+        return tf.reduce_mean(loss)
 
     @tf.function
     def _iou(
